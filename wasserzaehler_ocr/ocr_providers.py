@@ -26,24 +26,59 @@ import requests
 #   {decimal} -> Anzahl Nachkommaziffern (rot)
 #   {total}   -> Gesamtzahl der Ziffern (main + decimal)
 #   {example} -> Beispiel-Ziffernfolge in passender Länge (z. B. "00000000")
-DEFAULT_PROMPT = (
+# werden vor dem Senden ersetzt (siehe _build_prompt):
+#   {main}       -> Anzahl Hauptziffern (schwarz)
+#   {decimal}    -> Anzahl Nachkommaziffern (rot)
+#   {total}      -> Gesamtzahl der Ziffern (main + decimal)
+#   {example}    -> Beispiel-Ziffernfolge in passender Länge (z. B. "00000000")
+#   {last_value} -> letzter bekannter Zaehlerstand (oder "unknown" beim 1. Lauf)
+#
+# Der Standard-Prompt ist in drei Teile aufgeteilt, damit der Hinweis auf den
+# letzten Wert nur dann mitgeschickt wird, wenn ueberhaupt schon ein Wert
+# bekannt ist (sonst bringt "previous reading was unknown" keinen Nutzen).
+DEFAULT_PROMPT_HEAD = (
     "You are a precise OCR system for reading water meters. "
     "The meter has exactly {main} main digits (black/white) and exactly "
     "{decimal} decimal digits (red). You must read all {total} digits from "
-    "left to right. ALWAYS and EXCLUSIVELY return the result as a valid JSON "
-    'object with just one key called raw_digits. Replace the placeholder with '
-    'the real value: { "raw_digits": "{example}" } '
-    "Respond only with the JSON code."
+    "left to right. "
+)
+DEFAULT_PROMPT_LASTVALUE = (
+    "As a plausibility aid, the previous reading was {last_value}. The new "
+    "reading is normally equal to or slightly higher than this and close to it "
+    "(the last decimal digits change fastest). Use this only as a hint and "
+    "still read the digits exactly as they appear on the meter. "
+)
+DEFAULT_PROMPT_TAIL = (
+    "ALWAYS and EXCLUSIVELY return the result as a valid JSON object with just "
+    'one key called raw_digits. Replace the placeholder with the real value: '
+    '{ "raw_digits": "{example}" } Respond only with the JSON code.'
 )
 
 
-def _build_prompt(main_digits, decimal_digits, custom_prompt=""):
+def _default_prompt(has_last_value):
+    """Setzt den eingebauten Standard-Prompt zusammen. Der Hinweis auf den
+    letzten Wert kommt nur dazu, wenn schon ein Wert bekannt ist."""
+    parts = [DEFAULT_PROMPT_HEAD]
+    if has_last_value:
+        parts.append(DEFAULT_PROMPT_LASTVALUE)
+    parts.append(DEFAULT_PROMPT_TAIL)
+    return "".join(parts)
+
+
+def _build_prompt(main_digits, decimal_digits, custom_prompt="", last_value=None):
     """Baut den an die KI gesendeten Prompt.
 
     Wenn in der Konfiguration ein eigener Prompt hinterlegt ist
     (``custom_prompt``), wird dieser verwendet, sonst der eingebaute
     Standard-Prompt. In beiden Faellen werden die Platzhalter {main},
-    {decimal}, {total} und {example} durch die konkreten Werte ersetzt.
+    {decimal}, {total}, {example} und {last_value} durch die konkreten Werte
+    ersetzt.
+
+    ``last_value`` ist der zuletzt gespeicherte Zaehlerstand und wird der KI
+    als Plausibilitaets-Kontext mitgegeben, damit grenzwertige Ziffern (v. a.
+    die rollenden Nachkommastellen) besser bestimmt werden koennen. Ist noch
+    kein Wert bekannt, wird {last_value} zu "unknown" und der eingebaute
+    Standard-Prompt laesst den Hinweissatz ganz weg.
 
     Es wird bewusst eine einfache Textersetzung (str.replace) statt
     str.format() genutzt, damit ein eigener Prompt beliebige geschweifte
@@ -51,13 +86,26 @@ def _build_prompt(main_digits, decimal_digits, custom_prompt=""):
     dass diese ausmaskiert werden muessten.
     """
     total = main_digits + decimal_digits
-    template = custom_prompt.strip() if custom_prompt and custom_prompt.strip() \
-        else DEFAULT_PROMPT
+
+    if last_value is None:
+        last_value_str = "unknown"
+    else:
+        try:
+            last_value_str = f"{float(last_value):.{decimal_digits}f}"
+        except (TypeError, ValueError):
+            last_value_str = str(last_value)
+
+    if custom_prompt and custom_prompt.strip():
+        template = custom_prompt.strip()
+    else:
+        template = _default_prompt(last_value is not None)
+
     replacements = {
         "{main}": str(main_digits),
         "{decimal}": str(decimal_digits),
         "{total}": str(total),
         "{example}": "0" * total,
+        "{last_value}": last_value_str,
     }
     for token, value in replacements.items():
         template = template.replace(token, value)
@@ -105,11 +153,11 @@ def _finalize(text, main_digits, decimal_digits, log):
 # Ollama
 # ---------------------------------------------------------------------------
 
-def _ollama(image_path, opts, main_digits, decimal_digits, timeout, log):
+def _ollama(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
     url = opts["ollama_url"]
     model = opts["ollama_model"]
     keep_alive = int(opts.get("ollama_keep_alive", 0))
-    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""))
+    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""), last_value)
 
     options = {"temperature": 0, "num_predict": 50, "keep_alive": keep_alive}
     num_thread = int(opts.get("ollama_num_thread", 0) or 0)
@@ -158,12 +206,12 @@ def _ollama(image_path, opts, main_digits, decimal_digits, timeout, log):
 # OpenAI (Chat Completions, Vision)
 # ---------------------------------------------------------------------------
 
-def _openai(image_path, opts, main_digits, decimal_digits, timeout, log):
+def _openai(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
     api_key = opts.get("openai_api_key", "")
     if not api_key:
         return {"raw_digits": None, "error": "OpenAI: kein API-Schlüssel gesetzt"}
     model = opts.get("openai_model", "gpt-4o-mini")
-    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""))
+    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""), last_value)
     img = _b64(image_path)
 
     payload = {
@@ -203,12 +251,12 @@ def _openai(image_path, opts, main_digits, decimal_digits, timeout, log):
 # Google Gemini (generateContent)
 # ---------------------------------------------------------------------------
 
-def _gemini(image_path, opts, main_digits, decimal_digits, timeout, log):
+def _gemini(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
     api_key = opts.get("gemini_api_key", "")
     if not api_key:
         return {"raw_digits": None, "error": "Gemini: kein API-Schlüssel gesetzt"}
     model = opts.get("gemini_model", "gemini-2.0-flash")
-    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""))
+    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""), last_value)
     img = _b64(image_path)
 
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -241,12 +289,12 @@ def _gemini(image_path, opts, main_digits, decimal_digits, timeout, log):
 # Anthropic Claude (messages)
 # ---------------------------------------------------------------------------
 
-def _claude(image_path, opts, main_digits, decimal_digits, timeout, log):
+def _claude(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
     api_key = opts.get("claude_api_key", "")
     if not api_key:
         return {"raw_digits": None, "error": "Claude: kein API-Schlüssel gesetzt"}
     model = opts.get("claude_model", "claude-3-5-sonnet-20241022")
-    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""))
+    prompt = _build_prompt(main_digits, decimal_digits, opts.get("ocr_prompt", ""), last_value)
     img = _b64(image_path)
 
     payload = {
@@ -287,7 +335,7 @@ def _claude(image_path, opts, main_digits, decimal_digits, timeout, log):
 # Tesseract (lokale klassische OCR, kein KI-Modell noetig)
 # ---------------------------------------------------------------------------
 
-def _tesseract(image_path, opts, main_digits, decimal_digits, timeout, log):
+def _tesseract(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
     try:
         import pytesseract
         from PIL import Image, ImageOps
@@ -325,9 +373,14 @@ PROVIDERS = {
 }
 
 
-def read_digits(provider, image_path, opts, main_digits, decimal_digits, timeout, log):
-    """Ruft den konfigurierten Anbieter auf."""
+def read_digits(provider, image_path, opts, main_digits, decimal_digits, timeout,
+                log, last_value=None):
+    """Ruft den konfigurierten Anbieter auf.
+
+    ``last_value`` (letzter gespeicherter Zaehlerstand) wird an die KI-Anbieter
+    als Plausibilitaets-Kontext weitergereicht; Tesseract ignoriert ihn.
+    """
     fn = PROVIDERS.get(provider)
     if fn is None:
         return {"raw_digits": None, "error": f"unbekannter Anbieter: {provider}"}
-    return fn(image_path, opts, main_digits, decimal_digits, timeout, log)
+    return fn(image_path, opts, main_digits, decimal_digits, timeout, log, last_value)

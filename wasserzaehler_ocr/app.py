@@ -243,6 +243,15 @@ def process():
         }.get(provider, provider)
         set_phase("ocr", f"OCR läuft ({model_label}) …")
 
+        # Zustand (letzter Wert, Zeit, Fehlerzaehler) schon hier laden - der
+        # letzte Zaehlerstand wird der KI als Plausibilitaets-Kontext
+        # mitgegeben, damit grenzwertige Ziffern besser bestimmt werden.
+        state_path = Path(cfg["last_value_path"])
+        state = plausibility.load_state(state_path, log)
+        last_value = state["value"]
+        last_timestamp = state["timestamp"]
+        error_count = state["error_count"]
+
         result = ocr_providers.read_digits(
             provider=provider,
             image_path=cfg["dst_path"],
@@ -251,17 +260,11 @@ def process():
             decimal_digits=int(cfg["ocr_decimal_digits"]),
             timeout=int(cfg["ollama_timeout"]),
             log=log,
+            last_value=last_value,
         )
 
         log(f"OCR-Ergebnis: {result}")
         set_phase("plausibility", "Prüfe Plausibilität …")
-
-        # 4. Zustand laden (letzter Wert, Zeit, Fehlerzaehler)
-        state_path = Path(cfg["last_value_path"])
-        state = plausibility.load_state(state_path, log)
-        last_value = state["value"]
-        last_timestamp = state["timestamp"]
-        error_count = state["error_count"]
 
         now = time.time()
         ocr_failed = result.get("raw_digits") is None

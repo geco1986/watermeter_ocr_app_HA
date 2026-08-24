@@ -235,6 +235,15 @@ Werte ersetzt:
 | `{decimal}` | Anzahl der Nachkommaziffern (rot) |
 | `{total}` | Gesamtzahl der Ziffern (`main` + `decimal`) |
 | `{example}` | Beispiel-Ziffernfolge in passender Länge, z. B. `00000000` |
+| `{last_value}` | letzter bekannter Zählerstand (beim allerersten Lauf `unknown`) |
+
+Der **letzte Zählerstand wird der KI als Kontext mitgegeben**: Da der neue Wert
+normalerweise gleich oder nur wenig höher ist, kann die KI damit grenzwertige
+Ziffern – vor allem die schnell rollenden Nachkommastellen – deutlich besser
+bestimmen. Der eingebaute Standard-Prompt enthält dafür bereits einen
+Hinweissatz; er wird nur mitgeschickt, wenn schon ein Wert bekannt ist (beim
+allerersten Lauf entfällt er). In einem eigenen Prompt kannst du den Wert über
+`{last_value}` an beliebiger Stelle einbauen.
 
 Geschweifte Klammern für JSON (z. B. `{ "raw_digits": "…" }`) dürfen frei
 verwendet werden und müssen nicht ausmaskiert werden. Der Button

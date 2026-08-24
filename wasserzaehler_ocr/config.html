@@ -194,7 +194,8 @@
       Gemini und Claude – nicht für Tesseract). Leer lassen, um den eingebauten Standard-Prompt zu verwenden.
       Folgende Platzhalter werden vor dem Senden automatisch ersetzt:
       <code>{main}</code> = Hauptziffern, <code>{decimal}</code> = Nachkommaziffern,
-      <code>{total}</code> = Gesamtzahl, <code>{example}</code> = Beispielfolge (z. B. 00000000).</div>
+      <code>{total}</code> = Gesamtzahl, <code>{example}</code> = Beispielfolge (z. B. 00000000),
+      <code>{last_value}</code> = letzter bekannter Zählerstand (beim ersten Lauf „unknown“).</div>
     <label>Prompt <span class="hint">leer = Standard</span></label>
     <textarea id="ocr_prompt" placeholder="Leer lassen für den eingebauten Standard-Prompt …"></textarea>
     <div class="btns" style="display:flex; gap:10px; margin-top:10px;">
@@ -233,7 +234,12 @@ const providers = ["tesseract","ollama_local","ollama_remote","openai","gemini",
 const DEFAULT_PROMPT = 'You are a precise OCR system for reading water meters. '
   + 'The meter has exactly {main} main digits (black/white) and exactly '
   + '{decimal} decimal digits (red). You must read all {total} digits from '
-  + 'left to right. ALWAYS and EXCLUSIVELY return the result as a valid JSON '
+  + 'left to right. '
+  + 'As a plausibility aid, the previous reading was {last_value}. The new '
+  + 'reading is normally equal to or slightly higher than this and close to it '
+  + '(the last decimal digits change fastest). Use this only as a hint and '
+  + 'still read the digits exactly as they appear on the meter. '
+  + 'ALWAYS and EXCLUSIVELY return the result as a valid JSON '
   + 'object with just one key called raw_digits. Replace the placeholder with '
   + 'the real value: { "raw_digits": "{example}" } '
   + 'Respond only with the JSON code.';
