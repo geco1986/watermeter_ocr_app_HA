@@ -75,6 +75,20 @@
   </nav>
 
   <div class="card">
+    <h2>Zugriffsadresse für Home Assistant</h2>
+    <div class="desc">Interne Docker-Adresse dieses Add-ons – so wie bei der Frigate-App
+      (z. B. <code>http://ccab4aaf-frigate:5000</code>). Diese Adresse aus dem
+      Home-Assistant-Netz heraus für den REST-Sensor bzw. die Integration verwenden,
+      statt der Host-IP. Voraussetzung: Port 5000 bleibt aktiviert (Standard).</div>
+    <label>Interne Adresse <span class="hint">automatisch ermittelt</span></label>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <input type="text" id="internal_url" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;">
+      <button id="copyUrlBtn" class="ghost" type="button" style="white-space:nowrap;">Kopieren</button>
+    </div>
+    <div class="note" id="hostinfo_note"></div>
+  </div>
+
+  <div class="card">
     <h2>Kamera &amp; Lampe</h2>
     <div class="desc">Welche Home-Assistant-Entitäten für das Foto verwendet werden.</div>
     <label>Kamera-Entität <span class="hint">z. B. camera.esp32_cam_esp32_kamera</span></label>
@@ -378,8 +392,29 @@ el("pruneLocalBtn").addEventListener("click",
 el("pruneRemoteBtn").addEventListener("click",
   () => pruneOllama("remote", el("ollama_model_remote").value, el("pruneRemoteStatus")));
 
+// --- Interne Zugriffsadresse (Frigate-Stil) ---
+function loadHostInfo() {
+  fetch("hostinfo").then(r => r.json()).then(d => {
+    const url = d.internal_url || "";
+    el("internal_url").value = url || "(Hostname nicht ermittelbar)";
+    el("hostinfo_note").textContent = url
+      ? "Beispiel für den REST-Sensor: " + url + "/process"
+      : "Der Container-Hostname konnte nicht bestimmt werden – nutze ersatzweise http://<HA-HOST-IP>:5000.";
+  }).catch(() => {
+    el("internal_url").value = "(nicht ermittelbar)";
+  });
+}
+el("copyUrlBtn").addEventListener("click", () => {
+  const inp = el("internal_url");
+  inp.select(); inp.setSelectionRange(0, 99999);
+  const done = () => { const b = el("copyUrlBtn"); const t = b.textContent; b.textContent = "Kopiert"; setTimeout(() => b.textContent = t, 1500); };
+  if (navigator.clipboard) { navigator.clipboard.writeText(inp.value).then(done).catch(() => { try { document.execCommand("copy"); done(); } catch (e) {} }); }
+  else { try { document.execCommand("copy"); done(); } catch (e) {} }
+});
+
 loadSettings();
 loadSystemInfo();
+loadHostInfo();
 </script>
 </body>
 </html>

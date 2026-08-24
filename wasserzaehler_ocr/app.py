@@ -14,6 +14,8 @@ Endpunkte:
 import json
 import io
 import logging
+import os
+import socket
 import sys
 import time
 import traceback
@@ -375,6 +377,34 @@ def process():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
+
+
+# Der Port, auf dem die HTTP-API im Container lauscht (siehe unten und
+# config.yaml -> ports). Wird fuer die interne Zugriffsadresse gebraucht.
+API_PORT = 5000
+
+
+def _container_hostname() -> str:
+    """Liefert den Hostnamen des eigenen Containers.
+
+    Home Assistant setzt fuer jedes Add-on einen im internen Docker-Netz
+    aufloesbaren Hostnamen (wie bei Frigate 'ccab4aaf-frigate'). Genau
+    diesen liefert socket.gethostname() bzw. die HOSTNAME-Umgebungsvariable -
+    ohne dass dafuer die Supervisor-API noetig waere.
+    """
+    return (os.environ.get("HOSTNAME") or socket.gethostname() or "").strip()
+
+
+@app.route("/hostinfo", methods=["GET"])
+def hostinfo():
+    """Interne Zugriffsadresse des Add-on-Containers (fuer REST-Sensor /
+    Integration), analog zur Frigate-Adresse http://<hostname>:5000."""
+    host = _container_hostname()
+    return jsonify({
+        "hostname": host,
+        "port": API_PORT,
+        "internal_url": f"http://{host}:{API_PORT}" if host else "",
+    })
 
 
 @app.route("/set_value", methods=["GET", "POST"])

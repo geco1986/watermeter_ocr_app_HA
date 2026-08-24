@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.0.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.1.0.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -100,6 +100,7 @@ installierst.
 |---|---|
 | `GET /process` | löst eine komplette Ablesung aus, liefert JSON |
 | `GET /health` | `{"status": "ok"}` |
+| `GET /hostinfo` | interne Container-Adresse (Hostname + `http://<hostname>:5000`) |
 | `GET /status` | Live-Prozessstatus + letztes Ergebnis (für die Übersichtsseite) |
 | `GET/POST /settings` | aktuelle Einstellungen lesen/schreiben |
 | `GET /system_info` | RAM-Info + Modellempfehlung |
@@ -136,6 +137,23 @@ zurückgesetzt.
 
 ## Einbindung in Home Assistant
 
+### Zugriffsadresse: Host-IP oder interne Container-Adresse
+
+Für den REST-Sensor bzw. die Integration gibt es zwei Wege, das Add-on
+anzusprechen:
+
+- **Host-IP:** `http://<HA-HOST-IP>:5000` – funktioniert von überall im LAN.
+- **Interne Container-Adresse (wie bei Frigate):** `http://<container-hostname>:5000`
+  – nur aus dem Home-Assistant-Netz heraus, dafür unabhängig von der Host-IP.
+  Bei Frigate ist das z. B. `http://ccab4aaf-frigate:5000`; bei diesem Add-on
+  wird der genaue Hostname automatisch ermittelt und auf der **Konfigurationsseite**
+  unter „Zugriffsadresse für Home Assistant" angezeigt (mit Kopieren-Button).
+  Voraussetzung ist, dass Port 5000 aktiviert bleibt (Standard).
+
+Die interne Adresse ist die robustere Wahl, wenn sich die Host-IP ändern kann.
+In allen folgenden Beispielen lässt sich `http://<HA-HOST-IP>:5000` durch die
+interne Adresse ersetzen.
+
 ### Über die Custom-Integration (empfohlen)
 Siehe das separate Integration-Repository „Wasserzähler OCR" – bindet
 Zählerstand, Durchfluss, Tagesverbrauch, Status usw. als native Entitäten ein,
@@ -144,7 +162,7 @@ inklusive Eingabefeld zur Korrektur direkt auf der Geräteseite.
 ### Über REST-Sensoren (Alternative)
 ```yaml
 rest:
-  - resource: "http://<HA-HOST-IP>:5000/process"
+  - resource: "http://<HA-HOST-IP>:5000/process"   # oder: http://<container-hostname>:5000/process
     scan_interval: 120
     timeout: 130
     sensor:
