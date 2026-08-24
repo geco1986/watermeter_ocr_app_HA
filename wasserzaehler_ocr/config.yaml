@@ -1,5 +1,5 @@
 name: "Wasserzähler OCR"
-version: "1.1.0"
+version: "1.2.1"
 slug: "wasserzaehler_ocr"
 description: "Liest den Wasserzähler automatisch aus Kamerabildern. Alle Einstellungen (Kamera, OCR-Anbieter, Zuschnitt, Plausibilität) werden über die eingebaute Weboberfläche vorgenommen – Klick auf 'Benutzeroberfläche öffnen'."
 arch:
@@ -12,9 +12,10 @@ ingress_port: 8099
 panel_icon: mdi:water
 panel_title: Wasserzähler
 homeassistant_api: true
-ports:
-  5000/tcp: 5000
-ports_description:
-  5000/tcp: "HTTP-API (die Home-Assistant-Integration greift hierüber zu)"
+# Kein Host-Port: Die HTTP-API (Port 5000) ist bewusst NICHT ins LAN
+# veröffentlicht. Sie bleibt nur intern im Home-Assistant-Docker-Netz
+# erreichbar – über die Container-Adresse http://<hostname>:5000 (siehe
+# Konfigurationsseite). Die Weboberfläche läuft über Ingress (Port 8099),
+# authentifiziert durch Home Assistant.
 options: {}
 schema: {}

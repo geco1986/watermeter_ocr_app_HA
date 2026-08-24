@@ -78,8 +78,9 @@
     <h2>Zugriffsadresse für Home Assistant</h2>
     <div class="desc">Interne Docker-Adresse dieses Add-ons – so wie bei der Frigate-App
       (z. B. <code>http://ccab4aaf-frigate:5000</code>). Diese Adresse aus dem
-      Home-Assistant-Netz heraus für den REST-Sensor bzw. die Integration verwenden,
-      statt der Host-IP. Voraussetzung: Port 5000 bleibt aktiviert (Standard).</div>
+      Home-Assistant-Netz heraus für den REST-Sensor bzw. die Integration verwenden.
+      Ein Zugriff aus dem LAN über die Host-IP ist bewusst nicht möglich – die API ist
+      nur intern im Home-Assistant-Netz erreichbar.</div>
     <label>Interne Adresse <span class="hint">automatisch ermittelt</span></label>
     <div style="display:flex; gap:10px; align-items:center;">
       <input type="text" id="internal_url" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;">
