@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.2.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.4.0.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -60,6 +60,7 @@ Konfigurationsdatei bearbeitet werden.
 | Anbieter | Kosten | Läuft wo | Erkennungsqualität* |
 |---|---|---|---|
 | **Tesseract** | kostenlos | im Add-on (lokal) | schwach bei gewölbten Rollenzählwerken, ok bei flachen/gedruckten Anzeigen |
+| **TFLite** | kostenlos | im Add-on (lokal, sehr genügsam) | gut bei klar getrennten, gleichmäßig angeordneten Ziffern (Rollenzählwerke) |
 | **Ollama – im Add-on** | kostenlos | im Add-on (lokal, braucht RAM) | je nach Modell – siehe RAM-Empfehlung in der Konfiguration |
 | **Ollama – eigener Server** | kostenlos | dein eigener Rechner/Server | wie oben, aber ohne den HA-Host zu belasten |
 | **OpenAI / Gemini / Claude** | pro Anfrage (Cent-Bereich) | Cloud des Anbieters | am zuverlässigsten in unseren Tests |
@@ -68,9 +69,9 @@ Konfigurationsdatei bearbeitet werden.
 Bei anderen Zählertypen (flache Digitalanzeige) kann Tesseract deutlich besser
 abschneiden.*
 
-**Praktischer Rat:** Starte mit Tesseract oder einem kleinen lokalen Modell
-zum Testen. Wenn die Erkennung zu oft danebenliegt, wechsle auf Ollama mit
-einem stärkeren Modell (die Konfigurationsseite zeigt eine RAM-basierte
+**Praktischer Rat:** Starte mit Tesseract, TFLite oder einem kleinen lokalen
+Modell zum Testen. Wenn die Erkennung zu oft danebenliegt, wechsle auf Ollama
+mit einem stärkeren Modell (die Konfigurationsseite zeigt eine RAM-basierte
 Empfehlung) oder auf einen Cloud-Anbieter.
 
 **Bei Cloud-Anbietern:** Es entstehen Kosten pro Anfrage, und das Zählerbild
@@ -80,6 +81,50 @@ diesem Host gespeichert.
 **Bei „Ollama – im Add-on":** Ollama wird beim ersten Start mit diesem
 Anbieter automatisch heruntergeladen (braucht einmalig Internet) und
 persistent in `/data` abgelegt. Die Rechenlast liegt dann auf diesem Host.
+Wenn du das lokale Modell wechselst, zuerst „Einstellungen speichern" und dann
+den Button **„Add-on neu starten"** (im Bereich des lokalen Ollama) drücken –
+erst dann wird das neue Modell geladen.
+
+## TFLite – lokale Ziffernerkennung
+
+Der Anbieter **TFLite** nutzt kleine, lokale Ziffernmodelle im Stil von
+„AI-on-the-edge". Jedes Modell erkennt **eine einzelne Ziffer** aus einem
+kleinen Bildausschnitt. Zum Lesen des ganzen Zählers wird der (per Bild-Tuner
+zugeschnittene) Zahlenausschnitt automatisch in `Hauptziffern + Nachkommaziffern`
+**gleich breite Streifen** geteilt und jede Ziffer einzeln klassifiziert. Der
+Anbieter ist sehr genügsam (kein Ollama, keine Cloud, CPU-Inferenz im
+Millisekunden-Bereich).
+
+Damit das gut funktioniert:
+- „Ziffern des Zählwerks" (Haupt-/Nachkommastellen) müssen korrekt eingestellt
+  sein – daraus ergibt sich die Zahl der Streifen.
+- Im **Bild-Tuner** möglichst eng und gerade auf die Ziffernreihe zuschneiden;
+  ungleich breite Ränder verschieben die Streifengrenzen.
+- Am besten geeignet für Rollenzählwerke mit klar getrennten, gleichmäßig
+  angeordneten Ziffern.
+
+### Modell-Ordner
+
+Die Modelle liegen in einem eigenen Ordner. Auf der **Konfigurationsseite**
+(Anbieter „TFLite") werden **alle** gefundenen `.tflite`-Modelle in einer
+Auswahlliste angezeigt; „Ordner neu einlesen" aktualisiert die Liste.
+
+Es werden zwei Orte durchsucht (Dateinamen werden dedupliziert):
+- `/app/models` – die mitgelieferten Modelle (im Image, schreibgeschützt).
+- `/data/models` – **eigene** Modelle; dieser Ordner bleibt über Add-on-Updates
+  erhalten. Einfach weitere `.tflite`-Dateien hineinlegen (z. B. per „Studio
+  Code Server"- oder „Samba/SSH"-Add-on) und neu einlesen.
+
+Mitgeliefert sind drei Modelle:
+- `dig-class11_1910_s2_q.tflite` – 11 Klassen (0–9 plus „unklar"/NaN). Meldet
+  eine Ablesung als unklar, wenn eine Ziffer nicht sicher erkannt wird; die
+  Ablesung wird dann verworfen statt geraten.
+- `dig-class100-0182-s2_q.tflite` – 100 Klassen (0.0–9.9), feinere Auflösung.
+- `dig-cont_0900_s3_q.tflite` – kontinuierliches Modell für rollende/analoge
+  Ziffern.
+
+Das Add-on erkennt den Modelltyp automatisch an der Ausgabegröße – du musst
+also nichts weiter einstellen als die Modellauswahl.
 
 ## Installation
 
@@ -101,6 +146,8 @@ installierst.
 | `GET /process` | löst eine komplette Ablesung aus, liefert JSON |
 | `GET /health` | `{"status": "ok"}` |
 | `GET /hostinfo` | interne Container-Adresse (Hostname + `http://<hostname>:5000`) |
+| `GET /tflite_models` | Liste der `.tflite`-Modelle im Modell-Ordner |
+| `POST /restart_addon` | startet das Add-on neu (z. B. nach Wechsel des lokalen Modells) |
 | `GET /status` | Live-Prozessstatus + letztes Ergebnis (für die Übersichtsseite) |
 | `GET/POST /settings` | aktuelle Einstellungen lesen/schreiben |
 | `GET /system_info` | RAM-Info + Modellempfehlung |

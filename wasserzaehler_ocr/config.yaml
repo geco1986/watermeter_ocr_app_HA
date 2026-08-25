@@ -1,5 +1,5 @@
 name: "Wasserzähler OCR"
-version: "1.2.1"
+version: "1.4.0"
 slug: "wasserzaehler_ocr"
 description: "Liest den Wasserzähler automatisch aus Kamerabildern. Alle Einstellungen (Kamera, OCR-Anbieter, Zuschnitt, Plausibilität) werden über die eingebaute Weboberfläche vorgenommen – Klick auf 'Benutzeroberfläche öffnen'."
 arch:
@@ -11,6 +11,10 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:water
 panel_title: Wasserzähler
+# hassio_api: nur für den „Add-on neu starten"-Button (Supervisor-Endpunkt
+# /addons/self/restart). Standard-Rolle, kein hassio_role -> senkt die
+# Sicherheitsbewertung nicht.
+hassio_api: true
 homeassistant_api: true
 # Kein Host-Port: Die HTTP-API (Port 5000) ist bewusst NICHT ins LAN
 # veröffentlicht. Sie bleibt nur intern im Home-Assistant-Docker-Netz

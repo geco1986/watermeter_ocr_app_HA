@@ -15,6 +15,7 @@ SETTINGS_KEYS = (
     "light_entity",
     "light_warmup",
     "ocr_provider",
+    "tflite_model",
     "ollama_url",
     "ollama_model",
     "ollama_timeout",

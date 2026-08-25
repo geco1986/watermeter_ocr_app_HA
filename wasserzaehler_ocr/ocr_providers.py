@@ -359,12 +359,36 @@ def _tesseract(image_path, opts, main_digits, decimal_digits, timeout, log, last
     return _finalize(text, main_digits, decimal_digits, log)
 
 
+def _tflite(image_path, opts, main_digits, decimal_digits, timeout, log, last_value=None):
+    """Lokale Ziffernerkennung mit einem TFLite-Modell (AI-on-the-edge-Stil).
+
+    Ignoriert ``last_value`` (jede Ziffer wird unabhaengig klassifiziert).
+    """
+    try:
+        import tflite_ocr
+    except Exception as exc:  # noqa: BLE001
+        return {"raw_digits": None, "error": f"TFLite-Modul nicht verfügbar: {exc}"}
+
+    model = (opts.get("tflite_model") or "").strip()
+    if not model:
+        return {"raw_digits": None,
+                "error": "kein TFLite-Modell gewählt (Konfigurationsseite)"}
+
+    log(f"Lese Bild mit TFLite-Modell '{model}' (lokale Ziffernerkennung) ...")
+    digits, err = tflite_ocr.read_digits(
+        image_path, model, main_digits, decimal_digits, log)
+    if err:
+        return {"raw_digits": None, "error": err}
+    return _finalize(digits, main_digits, decimal_digits, log)
+
+
 # ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
 PROVIDERS = {
     "tesseract": _tesseract,
+    "tflite": _tflite,
     "ollama_local": _ollama,
     "ollama_remote": _ollama,
     "openai": _openai,

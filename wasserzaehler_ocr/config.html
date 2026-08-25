@@ -108,6 +108,7 @@
     <label>Anbieter</label>
     <select id="ocr_provider">
       <option value="tesseract">Tesseract – klassische OCR, lokal, kein Modell</option>
+      <option value="tflite">TFLite – lokale Ziffernerkennung (AI-on-the-edge-Modelle)</option>
       <option value="ollama_local">Ollama – im Add-on selbst (lokal)</option>
       <option value="ollama_remote">Ollama – eigener Server (extern)</option>
       <option value="openai">OpenAI (Cloud)</option>
@@ -117,6 +118,23 @@
 
     <div class="provider-fields" id="fields_tesseract">
       <div class="note">Keine weiteren Einstellungen nötig. Tesseract läuft direkt im Add-on.</div>
+    </div>
+
+    <div class="provider-fields" id="fields_tflite">
+      <div class="desc">Erkennt jede Ziffer einzeln mit einem kleinen, lokalen TFLite-Modell
+        (wie bei „AI-on-the-edge"). Sehr genügsam, keine Cloud, kein Ollama. Der
+        Zahlenausschnitt wird dazu in gleich breite Ziffernstreifen geteilt – stelle
+        oben „Ziffern des Zählwerks" korrekt ein und schneide im Bild-Tuner möglichst
+        eng auf die Ziffern zu.</div>
+      <label>Modell <span class="hint">aus dem Modell-Ordner</span></label>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <select id="tflite_model"><option value="">(lade Modelle …)</option></select>
+        <button id="tfliteReloadBtn" class="ghost" type="button" style="white-space:nowrap;">Ordner neu einlesen</button>
+      </div>
+      <div class="note" id="tflite_note">Modelle liegen im Ordner <code>/data/models</code>
+        (benutzereigen, bleibt bei Updates erhalten) sowie den mitgelieferten unter
+        <code>/app/models</code>. Eigene <code>.tflite</code>-Dateien einfach in
+        <code>/data/models</code> ablegen und „Ordner neu einlesen" klicken.</div>
     </div>
 
     <div class="provider-fields" id="fields_ollama_local">
@@ -137,6 +155,13 @@
         eingetragene – schafft Speicherplatz auf dem Home-Assistant-Host. Gelöschte Modelle werden bei
         erneuter Nutzung automatisch neu geladen.</div>
       <div class="status" id="pruneLocalStatus"></div>
+      <div class="btns" style="margin-top:16px;">
+        <button id="restartBtn" class="ghost" type="button">Add-on neu starten</button>
+      </div>
+      <div class="note"><strong>Wichtig:</strong> Nach dem Ändern des lokalen Modells zuerst
+        „Einstellungen speichern", dann hier neu starten – erst dann wird das neue Modell geladen
+        (und ggf. heruntergeladen).</div>
+      <div class="status" id="restartStatus"></div>
     </div>
 
     <div class="provider-fields" id="fields_ollama_remote">
@@ -241,7 +266,7 @@
 
 <script>
 const el = id => document.getElementById(id);
-const providers = ["tesseract","ollama_local","ollama_remote","openai","gemini","claude"];
+const providers = ["tesseract","tflite","ollama_local","ollama_remote","openai","gemini","claude"];
 
 // Muss mit DEFAULT_PROMPT in ocr_providers.py uebereinstimmen. Die Platzhalter
 // bleiben hier absichtlich sichtbar, damit man den Standard als Vorlage nehmen
@@ -271,6 +296,7 @@ function loadSettings() {
     el("light_warmup").value = s.light_warmup;
     el("ocr_provider").value = s.ocr_provider;
     showProviderFields(s.ocr_provider);
+    loadTfliteModels(s.tflite_model || "");
     el("ollama_model_local").value = s.ollama_model || "";
     el("ollama_num_thread_local").value = s.ollama_num_thread || 0;
     el("ollama_local_cpu_percent").value = s.ollama_local_cpu_percent || 0;
@@ -330,6 +356,7 @@ el("saveBtn").addEventListener("click", () => {
     light_entity: el("light_entity").value.trim(),
     light_warmup: parseInt(el("light_warmup").value) || 0,
     ocr_provider: provider,
+    tflite_model: el("tflite_model").value,
     ollama_url: el("ollama_url").value.trim(),
     ollama_model: provider === "ollama_local" ? el("ollama_model_local").value.trim() : el("ollama_model_remote").value.trim(),
     ollama_timeout: parseInt(el("ollama_timeout").value) || 120,
@@ -411,6 +438,52 @@ el("copyUrlBtn").addEventListener("click", () => {
   const done = () => { const b = el("copyUrlBtn"); const t = b.textContent; b.textContent = "Kopiert"; setTimeout(() => b.textContent = t, 1500); };
   if (navigator.clipboard) { navigator.clipboard.writeText(inp.value).then(done).catch(() => { try { document.execCommand("copy"); done(); } catch (e) {} }); }
   else { try { document.execCommand("copy"); done(); } catch (e) {} }
+});
+
+// --- TFLite-Modelle aus dem Ordner laden ---
+function loadTfliteModels(selected) {
+  const sel = el("tflite_model");
+  const want = selected !== undefined ? selected : sel.value;
+  fetch("tflite_models").then(r => r.json()).then(d => {
+    const models = d.models || [];
+    sel.innerHTML = "";
+    if (!models.length) {
+      sel.innerHTML = '<option value="">(keine Modelle im Ordner gefunden)</option>';
+      el("tflite_note").textContent = "Keine .tflite-Modelle gefunden – Dateien in /data/models ablegen und neu einlesen.";
+      return;
+    }
+    for (const m of models) {
+      const o = document.createElement("option");
+      o.value = m; o.textContent = m;
+      sel.appendChild(o);
+    }
+    if (want && models.includes(want)) sel.value = want;
+    el("tflite_note").textContent =
+      models.length + " Modell(e) gefunden. Eigene .tflite-Dateien in /data/models ablegen und neu einlesen.";
+  }).catch(() => {
+    sel.innerHTML = '<option value="">(Fehler beim Laden)</option>';
+  });
+}
+el("tfliteReloadBtn").addEventListener("click", () => loadTfliteModels());
+
+// --- Add-on neu starten ---
+el("restartBtn").addEventListener("click", () => {
+  if (!confirm("Add-on jetzt neu starten? Laufende Ablesungen werden kurz unterbrochen.")) return;
+  const s = el("restartStatus");
+  s.className = "status"; s.textContent = "Neustart wird ausgelöst … die Seite ist gleich kurz nicht erreichbar.";
+  fetch("restart_addon", {method: "POST"}).then(r => r.json()).then(d => {
+    if (d.ok) {
+      s.className = "status ok";
+      s.textContent = "Neustart läuft. Bitte ~20 s warten und die Seite neu laden.";
+    } else {
+      s.className = "status err";
+      s.textContent = "Fehler: " + (d.error || "unbekannt");
+    }
+  }).catch(() => {
+    // Verbindungsabbruch ist beim Neustart normal
+    s.className = "status ok";
+    s.textContent = "Neustart läuft. Bitte ~20 s warten und die Seite neu laden.";
+  });
 });
 
 loadSettings();

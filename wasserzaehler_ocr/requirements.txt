@@ -2,3 +2,5 @@ flask
 pillow
 requests
 pytesseract
+numpy
+ai-edge-litert

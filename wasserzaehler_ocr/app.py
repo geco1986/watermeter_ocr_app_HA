@@ -71,6 +71,7 @@ SETTINGS_DEFAULTS = {
     "light_entity": "",
     "light_warmup": 10,
     "ocr_provider": "ollama_remote",
+    "tflite_model": "",
     "ollama_url": "",
     "ollama_model": "moondream",
     "ollama_timeout": 120,
@@ -405,6 +406,47 @@ def hostinfo():
         "port": API_PORT,
         "internal_url": f"http://{host}:{API_PORT}" if host else "",
     })
+
+
+@app.route("/tflite_models", methods=["GET"])
+def tflite_models():
+    """Listet alle TFLite-Modelle im Modellordner (fuer die Konfiguration)."""
+    try:
+        import tflite_ocr
+        models = tflite_ocr.list_models()
+        return jsonify({"models": models, "count": len(models)})
+    except Exception as exc:  # noqa: BLE001
+        log(f"TFLite-Modelle auflisten fehlgeschlagen: {exc}")
+        return jsonify({"models": [], "count": 0, "error": str(exc)})
+
+
+@app.route("/restart_addon", methods=["POST"])
+def restart_addon():
+    """Startet dieses Add-on neu (Supervisor-API /addons/self/restart).
+
+    Nötig z. B. nach dem Wechsel des lokalen Ollama-Modells, damit run.sh das
+    neue Modell lädt. Beim Neustart wird der Container beendet – die
+    HTTP-Antwort kann dabei abbrechen, was hier als Erfolg gewertet wird.
+    """
+    import requests
+
+    token = os.environ.get("SUPERVISOR_TOKEN", "")
+    if not token:
+        return jsonify({"ok": False,
+                        "error": "kein Supervisor-Token (hassio_api aktiv?)"}), 500
+    try:
+        r = requests.post(
+            "http://supervisor/addons/self/restart",
+            headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        if r.status_code in (200, 201):
+            log("Add-on-Neustart über Supervisor ausgelöst")
+            return jsonify({"ok": True})
+        return jsonify({"ok": False,
+                        "error": f"Supervisor HTTP {r.status_code}: {r.text[:200]}"}), 502
+    except requests.exceptions.RequestException as exc:
+        # Verbindungsabbruch während des Neustarts ist zu erwarten -> Erfolg.
+        log(f"Neustart läuft (Verbindung beendet): {exc}")
+        return jsonify({"ok": True, "note": "Neustart läuft"}), 200
 
 
 @app.route("/set_value", methods=["GET", "POST"])
