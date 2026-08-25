@@ -15,7 +15,7 @@ Add-ons vorgenommen.
 > **Hinweis:** Die zugehörige **Integration** (native HA-Entitäten) liegt in
 > einem separaten Repository und wird über HACS installiert. Dieses Repository
 > hier ist nur das Add-on.
-
+-->https://github.com/geco1986/watermeter_ocr_integration
 ## Voraussetzungen
 
 - **Home Assistant** mit Add-on-Store (Home Assistant OS oder Supervised).
@@ -52,18 +52,6 @@ Passe außerdem, falls gewünscht, den Repository-Namen
    Konfiguration (Kamera, Lampe, OCR-Anbieter, Zuschnitt, Plausibilität) läuft
    über die Weboberfläche. Die Add-on-Konfiguration in Home Assistant ist
    bewusst leer.
-
-## Repository zu GitHub hochladen
-
-```bash
-cd wasserzaehler_ocr_addon      # in den Repo-Ordner wechseln
-git init
-git add .
-git commit -m "Initial commit: Wasserzähler OCR Add-on"
-git branch -M main
-git remote add origin https://github.com/DEIN-USER/wasserzaehler_ocr_addon.git
-git push -u origin main
-```
 
 ## Inhalt
 
