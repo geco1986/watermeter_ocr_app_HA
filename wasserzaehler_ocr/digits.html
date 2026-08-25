@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ziffern festlegen – Wasserzähler OCR</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a2129; --fg:#e6edf3; --muted:#8b98a5;
+          --accent:#1a6fc4; --accent2:#2f81f7; --ok:#2ea043; --warn:#e23b3b; --amber:#d29922; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:18px; }
+  h1 { font-size:18px; margin:0 0 12px; }
+  nav { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  nav a { color:var(--muted); text-decoration:none; font-size:13px; padding:6px 12px;
+          border-radius:999px; border:1px solid #2a3441; }
+  nav a.active, nav a:hover { color:#fff; border-color:var(--accent2); background:#16202c; }
+  .card { background:var(--card); border:1px solid #2a3441; border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2 { margin:0 0 8px; font-size:14px; }
+  .desc { font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .note { font-size:12px; color:var(--muted); margin-top:8px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px;
+           padding:9px 14px; font-size:14px; cursor:pointer; }
+  button:hover { background:var(--accent2); }
+  button.ghost { background:transparent; border:1px solid #2a3441; color:var(--fg); }
+  .btns { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .status { font-size:13px; margin-top:10px; min-height:18px; }
+  .status.ok { color:var(--ok); } .status.err { color:var(--warn); }
+  /* Editor */
+  #stage { position:relative; display:inline-block; max-width:100%;
+           border:1px solid #2a3441; border-radius:8px; overflow:hidden; touch-action:none; }
+  #baseimg { display:block; max-width:100%; user-select:none; -webkit-user-drag:none; }
+  .roi { position:absolute; border:2px solid var(--amber); background:rgba(210,153,34,0.12);
+         cursor:move; touch-action:none; }
+  .roi .idx { position:absolute; top:-9px; left:-2px; background:var(--amber); color:#000;
+              font-size:11px; font-weight:700; padding:0 4px; border-radius:4px; }
+  .roi .handle { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px;
+                 background:var(--accent2); border:2px solid #fff; border-radius:3px; cursor:nwse-resize; }
+  /* Übersicht */
+  .grid { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .digit { background:#0d1117; border:1px solid #2a3441; border-radius:8px; padding:8px; text-align:center; width:64px; }
+  .digit img { width:28px; height:46px; image-rendering:pixelated; border-radius:3px; background:#000; }
+  .digit .val { font-size:20px; font-weight:700; margin-top:4px; }
+  .digit .val.nan { color:var(--warn); }
+  .digit .conf { font-size:11px; color:var(--muted); }
+  .result { font-size:26px; font-weight:700; letter-spacing:1px; margin-top:8px; }
+  .result .unit { font-size:14px; color:var(--muted); font-weight:400; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ziffern festlegen (AI on the Edge)</h1>
+  <nav>
+    <a href=".">Übersicht</a>
+    <a href="config">Konfiguration</a>
+    <a href="tuner">Bild-Tuner</a>
+    <a href="digits" class="active">Ziffern</a>
+  </nav>
+
+  <div class="card">
+    <h2>Ziffern-Positionen</h2>
+    <div class="desc">Ziehe für jede Ziffer eine Box an ihre Stelle im Bild (verschieben in der Mitte,
+      Größe ändern an der blauen Ecke). Das Bild ist das zugeschnittene Zahlenfeld – schneide es vorher
+      im <a href="tuner" style="color:var(--accent2)">Bild-Tuner</a> passend zu. Die Reihenfolge ergibt
+      sich automatisch von links nach rechts.</div>
+    <div id="stage"><img id="baseimg" src="digits/base.jpg" alt="Basisbild"></div>
+    <div class="note" id="countnote"></div>
+    <div class="btns">
+      <button id="distributeBtn" class="ghost" type="button">Gleichmäßig verteilen</button>
+      <button id="addBtn" class="ghost" type="button">Ziffer +</button>
+      <button id="removeBtn" class="ghost" type="button">Ziffer −</button>
+      <button id="reloadImgBtn" class="ghost" type="button">Bild neu laden</button>
+      <button id="saveBtn" type="button">Positionen speichern</button>
+    </div>
+    <div class="status" id="saveStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>Erkennung testen</h2>
+    <div class="desc">Wendet die aktuellen Boxen mit dem gewählten TFLite-Modell an und zeigt, was pro
+      Ziffer erkannt wurde – wie bei AI on the Edge.</div>
+    <div class="btns">
+      <button id="testBtn" type="button">Erkennung testen</button>
+    </div>
+    <div class="status" id="testStatus"></div>
+    <div class="result" id="resultLine"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+const el = id => document.getElementById(id);
+const stage = el("stage");
+const img = el("baseimg");
+let total = 8, mainD = 5, decD = 3;
+let rois = [];   // {x,y,w,h} normiert 0..1
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ---- Boxen rendern ----
+function renderBoxes() {
+  // vorhandene .roi entfernen (Bild behalten)
+  [...stage.querySelectorAll(".roi")].forEach(n => n.remove());
+  const W = img.clientWidth, H = img.clientHeight;
+  rois.forEach((r, i) => {
+    const b = document.createElement("div");
+    b.className = "roi";
+    b.style.left = (r.x * W) + "px";
+    b.style.top = (r.y * H) + "px";
+    b.style.width = (r.w * W) + "px";
+    b.style.height = (r.h * H) + "px";
+    b.innerHTML = '<span class="idx">' + (i + 1) + '</span><span class="handle"></span>';
+    attachDrag(b, i);
+    stage.appendChild(b);
+  });
+  el("countnote").textContent =
+    rois.length + " Box(en) definiert · Zählwerk erwartet " + total +
+    " Ziffern (" + mainD + " Haupt + " + decD + " Nachkomma)" +
+    (rois.length !== total ? " — Anzahl stimmt noch nicht!" : "");
+  el("countnote").style.color = (rois.length === total) ? "var(--muted)" : "var(--amber)";
+}
+
+// ---- Ziehen & Größe ----
+let active = null;
+function attachDrag(boxEl, index) {
+  const handle = boxEl.querySelector(".handle");
+  boxEl.addEventListener("pointerdown", ev => {
+    if (ev.target === handle) return;
+    ev.preventDefault();
+    active = { mode: "move", index, sx: ev.clientX, sy: ev.clientY,
+               orig: {...rois[index]} };
+    boxEl.setPointerCapture(ev.pointerId);
+  });
+  handle.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    active = { mode: "resize", index, sx: ev.clientX, sy: ev.clientY,
+               orig: {...rois[index]} };
+    handle.setPointerCapture(ev.pointerId);
+  });
+}
+document.addEventListener("pointermove", ev => {
+  if (!active) return;
+  const W = img.clientWidth, H = img.clientHeight;
+  const dx = (ev.clientX - active.sx) / W;
+  const dy = (ev.clientY - active.sy) / H;
+  const r = rois[active.index], o = active.orig;
+  if (active.mode === "move") {
+    r.x = clamp(o.x + dx, 0, 1 - o.w);
+    r.y = clamp(o.y + dy, 0, 1 - o.h);
+  } else {
+    r.w = clamp(o.w + dx, 0.02, 1 - o.x);
+    r.h = clamp(o.h + dy, 0.05, 1 - o.y);
+  }
+  const b = stage.querySelectorAll(".roi")[active.index];
+  if (b) {
+    b.style.left = (r.x * W) + "px"; b.style.top = (r.y * H) + "px";
+    b.style.width = (r.w * W) + "px"; b.style.height = (r.h * H) + "px";
+  }
+});
+document.addEventListener("pointerup", () => { active = null; });
+
+// ---- Verteilen / hinzufügen / entfernen ----
+function distribute() {
+  rois = [];
+  const n = total > 0 ? total : 1;
+  const gap = 0.01, wBox = (1 - gap * (n + 1)) / n;
+  for (let i = 0; i < n; i++) {
+    rois.push({ x: +(gap + i * (wBox + gap)).toFixed(4), y: 0.12,
+                w: +wBox.toFixed(4), h: 0.76 });
+  }
+  renderBoxes();
+}
+el("distributeBtn").addEventListener("click", distribute);
+el("addBtn").addEventListener("click", () => {
+  rois.push({ x: 0.4, y: 0.2, w: 0.12, h: 0.6 }); renderBoxes();
+});
+el("removeBtn").addEventListener("click", () => { rois.pop(); renderBoxes(); });
+el("reloadImgBtn").addEventListener("click", () => {
+  img.src = "digits/base.jpg?ts=" + Date.now();
+});
+
+// ---- Speichern ----
+el("saveBtn").addEventListener("click", () => {
+  const sorted = [...rois].sort((a, b) => a.x - b.x).map(r => ({
+    x: +r.x.toFixed(4), y: +r.y.toFixed(4), w: +r.w.toFixed(4), h: +r.h.toFixed(4)
+  }));
+  const s = el("saveStatus"); s.className = "status"; s.textContent = "Speichere …";
+  fetch("settings", { method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ digit_rois: sorted }) })
+    .then(r => r.json()).then(d => {
+      s.className = d.ok ? "status ok" : "status err";
+      s.textContent = d.ok ? (sorted.length + " Ziffern-Boxen gespeichert.")
+                           : ("Fehler: " + (d.error || "unbekannt"));
+      rois = sorted; renderBoxes();
+    }).catch(e => { s.className = "status err"; s.textContent = "Fehler: " + e; });
+});
+
+// ---- Erkennung testen ----
+el("testBtn").addEventListener("click", () => {
+  const sorted = [...rois].sort((a, b) => a.x - b.x);
+  const st = el("testStatus"); st.className = "status"; st.textContent = "Erkenne …";
+  el("grid").innerHTML = ""; el("resultLine").textContent = "";
+  fetch("digits/test", { method: "POST", headers: { "Content-Type": "application/json" },
+                         body: JSON.stringify({ digit_rois: sorted }) })
+    .then(r => r.json()).then(d => {
+      if (d.error && !(d.details && d.details.length)) {
+        st.className = "status err"; st.textContent = "Fehler: " + d.error; return;
+      }
+      st.className = d.ok ? "status ok" : "status err";
+      st.textContent = d.ok ? "Erkennung erfolgreich." : ("Hinweis: " + (d.error || ""));
+      (d.details || []).forEach(det => {
+        const c = document.createElement("div");
+        c.className = "digit";
+        const nan = det.value === null;
+        c.innerHTML =
+          (det.thumb ? '<img src="' + det.thumb + '">' : '') +
+          '<div class="val' + (nan ? ' nan' : '') + '">' + (nan ? '?' : det.value) + '</div>' +
+          '<div class="conf">' + Math.round((det.confidence || 0) * 100) + '%</div>';
+        el("grid").appendChild(c);
+      });
+      if (d.value !== null && d.value !== undefined) {
+        el("resultLine").innerHTML = "Ergebnis: " + d.value + ' <span class="unit">m³</span>';
+      } else if (d.digits) {
+        el("resultLine").textContent = "Ziffern: " + d.digits;
+      }
+    }).catch(e => { st.className = "status err"; st.textContent = "Fehler: " + e; });
+});
+
+// ---- Initialisierung ----
+function init() {
+  fetch("settings").then(r => r.json()).then(s => {
+    mainD = parseInt(s.ocr_main_digits) || 0;
+    decD = parseInt(s.ocr_decimal_digits) || 0;
+    total = mainD + decD;
+    const saved = Array.isArray(s.digit_rois) ? s.digit_rois : [];
+    if (saved.length) { rois = saved.map(r => ({ x:+r.x, y:+r.y, w:+r.w, h:+r.h })); renderBoxes(); }
+    else { distribute(); }
+  });
+}
+if (img.complete && img.naturalWidth) init();
+img.addEventListener("load", () => { if (!rois.length) init(); else renderBoxes(); });
+img.addEventListener("error", () => {
+  el("countnote").textContent = "Kein Basisbild – bitte zuerst im Bild-Tuner ein Bild von der Kamera holen.";
+  el("countnote").style.color = "var(--warn)";
+});
+init();
+</script>
+</body>
+</html>

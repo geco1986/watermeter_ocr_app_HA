@@ -71,6 +71,7 @@
     <a href=".">Übersicht</a>
     <a href="config" class="active">Konfiguration</a>
     <a href="tuner">Bild-Tuner</a>
+    <a href="digits">Ziffern</a>
  <a href="cpu" style="color:#8b98a5;text-decoration:none;font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid #2a3441;">CPU-Auslastung</a>
   </nav>
 
@@ -135,6 +136,12 @@
         (benutzereigen, bleibt bei Updates erhalten) sowie den mitgelieferten unter
         <code>/app/models</code>. Eigene <code>.tflite</code>-Dateien einfach in
         <code>/data/models</code> ablegen und „Ordner neu einlesen" klicken.</div>
+      <div class="btns" style="margin-top:12px;">
+        <a href="digits" class="btn" style="display:inline-block;text-decoration:none;background:var(--accent);color:#fff;border-radius:8px;padding:9px 14px;font-size:14px;">Ziffern-Positionen festlegen →</a>
+      </div>
+      <div class="note">Jede Ziffer wird einzeln über eine eigene Box im Bild bestimmt (AI-on-the-edge-Stil)
+        und einzeln durchs Modell geschickt. Ohne definierte Boxen teilt das Add-on den Ausschnitt ersatzweise
+        gleichmäßig auf.</div>
     </div>
 
     <div class="provider-fields" id="fields_ollama_local">

@@ -86,6 +86,7 @@ SETTINGS_DEFAULTS = {
     "ocr_main_digits": 5,
     "ocr_decimal_digits": 3,
     "ocr_prompt": "",   # leer = eingebauter Standard-Prompt (siehe ocr_providers.py)
+    "digit_rois": [],   # AI-on-the-edge: Ziffern-Boxen (normiert) fuer TFLite
     "plausibility_check": True,
     "max_increase": 5.0,
     "hold_last_on_failure": True,
@@ -845,6 +846,96 @@ def tuner_preview():
         return "kein Quellbild", 404
     except ValueError as exc:
         return str(exc), 422
+
+
+@app.route("/digits", methods=["GET"])
+def digits_page():
+    here = Path(__file__).parent / "digits.html"
+    return send_file(str(here))
+
+
+def _render_base_image(cfg):
+    """Rendert das zugeschnittene Zahlenfeld (identisch zu dem Bild, das der
+    TFLite-Anbieter erhaelt) mit den effektiven Tuning-Werten."""
+    eff = tuning.effective(cfg, Path(cfg["tuning_path"]), log)
+    return rotate.render(
+        src_path=Path(cfg["src_path"]),
+        angle=float(eff["rotate_angle"]),
+        fill_color=eff["fill_color"],
+        crop_top=int(eff["crop_top"]),
+        crop_bottom=int(eff["crop_bottom"]),
+        crop_left=int(eff["crop_left"]),
+        crop_right=int(eff["crop_right"]),
+        log=None,
+    )
+
+
+@app.route("/digits/base.jpg", methods=["GET"])
+def digits_base():
+    """Basisbild fuer den Ziffern-Editor (zugeschnittenes Zahlenfeld)."""
+    cfg = get_config(log)
+    try:
+        img = _render_base_image(cfg)
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=int(cfg["jpeg_quality"]))
+        buf.seek(0)
+        return send_file(buf, mimetype="image/jpeg")
+    except FileNotFoundError:
+        return "kein Quellbild – bitte im Bild-Tuner ein Bild holen", 404
+    except ValueError as exc:
+        return str(exc), 422
+
+
+@app.route("/digits/test", methods=["POST"])
+def digits_test():
+    """Fuehrt die TFLite-Erkennung mit den uebergebenen (oder gespeicherten)
+    ROIs aus und liefert eine Uebersicht pro Ziffer (AI-on-the-edge-Stil)."""
+    import tflite_ocr
+    cfg = get_config(log)
+    data = request.get_json(silent=True) or {}
+    rois = data.get("digit_rois")
+    if rois is None:
+        rois = cfg.get("digit_rois") or None
+    model = (data.get("tflite_model") or cfg.get("tflite_model") or "").strip()
+    if not model:
+        return jsonify({"ok": False, "error": "kein TFLite-Modell gewählt"}), 400
+
+    try:
+        img = _render_base_image(cfg)
+    except FileNotFoundError:
+        return jsonify({"ok": False,
+                        "error": "kein Quellbild – im Bild-Tuner ein Bild holen"}), 404
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 422
+
+    tmp = Path("/data/_digits_base.jpg")
+    try:
+        img.save(str(tmp), "JPEG", quality=int(cfg["jpeg_quality"]))
+    except OSError as exc:
+        return jsonify({"ok": False, "error": f"Bild nicht speicherbar: {exc}"}), 500
+
+    main_d = int(cfg["ocr_main_digits"])
+    dec_d = int(cfg["ocr_decimal_digits"])
+    digits, details, err = tflite_ocr.recognize(
+        str(tmp), model, main_d, dec_d, log, rois=rois, with_crops=True)
+
+    value = None
+    if digits and len(digits) == main_d + dec_d:
+        if dec_d > 0:
+            value = float(f"{int(digits[:main_d])}.{digits[main_d:]}")
+        else:
+            value = float(int(digits))
+
+    return jsonify({
+        "ok": err is None,
+        "model": model,
+        "digits": digits,
+        "value": value,
+        "main_digits": main_d,
+        "decimal_digits": dec_d,
+        "details": details,
+        "error": err,
+    })
 
 
 @app.route("/tuner/save", methods=["POST"])

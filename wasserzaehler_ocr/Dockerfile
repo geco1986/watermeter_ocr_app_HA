@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL io.hass.version="1.4.0" \
+LABEL io.hass.version="1.5.0" \
       io.hass.type="app" \
       io.hass.arch="amd64|aarch64"
 
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY fetch_image.py rotate.py ocr_providers.py plausibility.py tuning.py \
      settings.py sysinfo.py history.py cpustats.py tflite_ocr.py app.py ./
-COPY tuner.html index.html config.html cpu.html run.sh ./
+COPY tuner.html index.html config.html cpu.html digits.html run.sh ./
 COPY models/ ./models/
 RUN chmod +x run.sh
 

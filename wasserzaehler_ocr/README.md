@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.4.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.5.0.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -126,6 +126,30 @@ Mitgeliefert sind drei Modelle:
 Das Add-on erkennt den Modelltyp automatisch an der Ausgabegröße – du musst
 also nichts weiter einstellen als die Modellauswahl.
 
+### Ziffern einzeln festlegen (AI-on-the-edge-Stil)
+
+Für die genaueste Erkennung wird **jede Ziffer über eine eigene Box** im Bild
+bestimmt, statt den Ausschnitt nur gleichmäßig zu teilen. Öffne dazu die Seite
+**„Ziffern"** (Link in der Navigation bzw. Button „Ziffern-Positionen festlegen"
+im TFLite-Bereich der Konfiguration):
+
+1. Zuerst im **Bild-Tuner** das Zahlenfeld gerade drehen und grob zuschneiden.
+2. Auf der Ziffern-Seite erscheint dieses zugeschnittene Bild. Ziehe für jede
+   Ziffer eine Box an ihre Stelle (verschieben in der Mitte, Größe an der blauen
+   Ecke). „Gleichmäßig verteilen" legt als Startpunkt so viele Boxen an, wie das
+   Zählwerk Ziffern hat.
+3. „Positionen speichern".
+4. „Erkennung testen" zeigt eine **Übersicht**, was pro Ziffer erkannt wurde –
+   mit dem jeweiligen Ausschnitt, der erkannten Ziffer und der Konfidenz – sowie
+   die zusammengesetzte Zahl. Genau wie bei AI on the Edge.
+
+Bei jeder normalen Ablesung schneidet das Add-on dann jede Box einzeln aus,
+schickt sie durchs Modell und setzt die Ziffern zur Zahl zusammen. Sind keine
+Boxen definiert, wird der Ausschnitt ersatzweise gleichmäßig aufgeteilt.
+
+Die Boxen werden als **normierte** Koordinaten (0–1) gespeichert und passen
+sich damit unterschiedlichen Bildauflösungen an.
+
 ## Installation
 
 ### Über den Add-on-Store (empfohlenes Repository)
@@ -148,6 +172,8 @@ installierst.
 | `GET /hostinfo` | interne Container-Adresse (Hostname + `http://<hostname>:5000`) |
 | `GET /tflite_models` | Liste der `.tflite`-Modelle im Modell-Ordner |
 | `POST /restart_addon` | startet das Add-on neu (z. B. nach Wechsel des lokalen Modells) |
+| `GET /digits`, `/digits/base.jpg` | Ziffern-Editor (AI-on-the-edge) und dessen Basisbild |
+| `POST /digits/test` | Test-Erkennung mit den Ziffern-Boxen, liefert Übersicht pro Ziffer |
 | `GET /status` | Live-Prozessstatus + letztes Ergebnis (für die Übersichtsseite) |
 | `GET/POST /settings` | aktuelle Einstellungen lesen/schreiben |
 | `GET /system_info` | RAM-Info + Modellempfehlung |
