@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.5.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.6.0.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -19,6 +19,9 @@
    - **Ziffern des Zählwerks** – wie viele schwarze/rote Ziffern dein Zähler hat.
    - **KI-Prompt** *(optional)* – der Text, mit dem die KI zum Ablesen
      aufgefordert wird. Leer lassen für den eingebauten Standard (siehe unten).
+   - **LED-Helligkeit** – Helligkeit der Kamera-LED/Lampe in Prozent, einstellbar
+     im Bild-Tuner und auf der Ziffern-Seite (0 = ohne Vorgabe). Wird beim
+     Bildabruf angewendet – auch im normalen Ablauf.
    - **Plausibilitätsprüfung** – Schutz gegen Fehlablesungen (siehe unten).
    - „Speichern" – wirkt sofort, **kein Add-on-Neustart nötig**.
 4. Auf „Übersicht" → **„Bild optimieren (Tuner)"**: Drehwinkel und Zuschnitt
@@ -137,7 +140,9 @@ im TFLite-Bereich der Konfiguration):
 2. Auf der Ziffern-Seite erscheint dieses zugeschnittene Bild. Ziehe für jede
    Ziffer eine Box an ihre Stelle (verschieben in der Mitte, Größe an der blauen
    Ecke). „Gleichmäßig verteilen" legt als Startpunkt so viele Boxen an, wie das
-   Zählwerk Ziffern hat.
+   Zählwerk Ziffern hat. Oben lassen sich außerdem das **TFLite-Modell** wählen
+   (gilt auch für den normalen Ablauf) und die **LED-Helligkeit** einstellen –
+   „Neues Bild von Kamera holen" lädt ein frisches Bild in dieser Helligkeit.
 3. „Positionen speichern".
 4. „Erkennung testen" zeigt eine **Übersicht**, was pro Ziffer erkannt wurde –
    mit dem jeweiligen Ausschnitt, der erkannten Ziffer und der Konfidenz – sowie

@@ -59,6 +59,24 @@
   </nav>
 
   <div class="card">
+    <h2>Bild &amp; Modell</h2>
+    <div class="desc">Wähle das TFLite-Modell (gilt auch für den normalen Ablauf) und hole bei Bedarf
+      ein frisches Kamerabild in der gewünschten LED-Helligkeit, um die Ziffern darauf zu setzen.</div>
+    <label for="tflite_model" style="display:block;font-size:13px;margin:6px 0 5px;">Modell</label>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <select id="tflite_model" style="flex:1;background:#0d1117;color:var(--fg);border:1px solid #2a3441;border-radius:6px;padding:9px 10px;"><option value="">(lade Modelle …)</option></select>
+      <button id="modelReloadBtn" class="ghost" type="button" style="white-space:nowrap;">Ordner neu einlesen</button>
+    </div>
+    <label for="led_brightness" style="display:block;font-size:13px;margin:14px 0 5px;">
+      LED-Helligkeit: <span id="led_val">100</span>% <span style="color:var(--muted);font-size:12px;">(0 = ohne Vorgabe)</span></label>
+    <input type="range" id="led_brightness" min="0" max="100" step="5" value="100" style="width:100%;">
+    <div class="btns">
+      <button id="fetchBtn" class="ghost" type="button">Neues Bild von Kamera holen</button>
+    </div>
+    <div class="status" id="fetchStatus"></div>
+  </div>
+
+  <div class="card">
     <h2>Ziffern-Positionen</h2>
     <div class="desc">Ziehe für jede Ziffer eine Box an ihre Stelle im Bild (verschieben in der Mitte,
       Größe ändern an der blauen Ecke). Das Bild ist das zugeschnittene Zahlenfeld – schneide es vorher
@@ -196,13 +214,47 @@ el("saveBtn").addEventListener("click", () => {
     }).catch(e => { s.className = "status err"; s.textContent = "Fehler: " + e; });
 });
 
+// ---- Modellauswahl ----
+function loadModels(selected) {
+  const sel = el("tflite_model");
+  const want = selected !== undefined ? selected : sel.value;
+  fetch("tflite_models").then(r => r.json()).then(d => {
+    const models = d.models || [];
+    sel.innerHTML = models.length ? "" : '<option value="">(keine Modelle gefunden)</option>';
+    models.forEach(m => {
+      const o = document.createElement("option"); o.value = m; o.textContent = m; sel.appendChild(o);
+    });
+    if (want && models.includes(want)) sel.value = want;
+  }).catch(() => { sel.innerHTML = '<option value="">(Fehler beim Laden)</option>'; });
+}
+el("modelReloadBtn").addEventListener("click", () => loadModels());
+// Modellwahl sofort speichern, damit auch der normale Ablauf sie nutzt
+el("tflite_model").addEventListener("change", () => {
+  fetch("settings", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tflite_model: el("tflite_model").value }) }).catch(() => {});
+});
+
+// ---- LED-Helligkeit + Bild holen ----
+el("led_brightness").addEventListener("input", () => { el("led_val").textContent = el("led_brightness").value; });
+el("fetchBtn").addEventListener("click", () => {
+  const b = el("fetchBtn"); const st = el("fetchStatus");
+  b.disabled = true; b.textContent = "Hole Bild…"; st.className = "status"; st.textContent = "Kamerabild wird geholt …";
+  fetch("tuner/fetch_source", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ light_brightness: parseInt(el("led_brightness").value) || 0 }) })
+    .then(r => r.json()).then(d => {
+      b.disabled = false; b.textContent = "Neues Bild von Kamera holen";
+      if (d.ok) { st.className = "status ok"; st.textContent = "Neues Bild geladen."; img.src = "digits/base.jpg?ts=" + Date.now(); }
+      else { st.className = "status err"; st.textContent = "Fehler: " + (d.error || "unbekannt"); }
+    }).catch(e => { b.disabled = false; b.textContent = "Neues Bild von Kamera holen"; st.className = "status err"; st.textContent = "Fehler: " + e; });
+});
+
 // ---- Erkennung testen ----
 el("testBtn").addEventListener("click", () => {
   const sorted = [...rois].sort((a, b) => a.x - b.x);
   const st = el("testStatus"); st.className = "status"; st.textContent = "Erkenne …";
   el("grid").innerHTML = ""; el("resultLine").textContent = "";
   fetch("digits/test", { method: "POST", headers: { "Content-Type": "application/json" },
-                         body: JSON.stringify({ digit_rois: sorted }) })
+                         body: JSON.stringify({ digit_rois: sorted, tflite_model: el("tflite_model").value }) })
     .then(r => r.json()).then(d => {
       if (d.error && !(d.details && d.details.length)) {
         st.className = "status err"; st.textContent = "Fehler: " + d.error; return;
@@ -233,6 +285,9 @@ function init() {
     mainD = parseInt(s.ocr_main_digits) || 0;
     decD = parseInt(s.ocr_decimal_digits) || 0;
     total = mainD + decD;
+    loadModels(s.tflite_model || "");
+    const bv = (s.light_brightness === undefined || s.light_brightness === null) ? 100 : s.light_brightness;
+    el("led_brightness").value = bv; el("led_val").textContent = bv;
     const saved = Array.isArray(s.digit_rois) ? s.digit_rois : [];
     if (saved.length) { rois = saved.map(r => ({ x:+r.x, y:+r.y, w:+r.w, h:+r.h })); renderBoxes(); }
     else { distribute(); }

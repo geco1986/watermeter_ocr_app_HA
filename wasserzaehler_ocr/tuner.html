@@ -62,10 +62,13 @@
     <div class="card">
       <h2>Quellbild</h2>
       <div class="src"><img id="srcimg" alt="Quellbild" src="tuner/source.jpg?ts=0"></div>
+      <label for="led_brightness" style="display:block;font-size:13px;margin:12px 0 5px;">
+        LED-Helligkeit: <span id="led_val">100</span>% <span style="color:#8b98a5;font-size:12px;">(0 = ohne Vorgabe)</span></label>
+      <input type="range" id="led_brightness" min="0" max="100" step="5" value="100" style="width:100%;">
       <div class="btns">
         <button id="fetchBtn">Neues Bild von Kamera holen</button>
       </div>
-      <div class="hint">Holt ein frisches Bild (mit Lampe, wie im echten Ablauf). Dauert kurz.</div>
+      <div class="hint">Holt ein frisches Bild (mit Lampe in dieser Helligkeit, wie im echten Ablauf). Dauert kurz.</div>
     </div>
 
     <div class="card">
@@ -198,9 +201,19 @@ fetch("tuner/current").then(r=>r.json()).then(v => {
 });
 
 // Frisches Bild holen
+el("led_brightness").addEventListener("input", () => {
+  el("led_val").textContent = el("led_brightness").value;
+});
+// aktuelle Helligkeit aus den Einstellungen laden
+fetch("settings").then(r=>r.json()).then(s => {
+  const v = (s.light_brightness === undefined || s.light_brightness === null) ? 100 : s.light_brightness;
+  el("led_brightness").value = v; el("led_val").textContent = v;
+}).catch(()=>{});
+
 el("fetchBtn").addEventListener("click", () => {
   const b = el("fetchBtn"); b.disabled = true; b.textContent = "Hole Bild…";
-  fetch("tuner/fetch_source", {method:"POST"}).then(r=>r.json()).then(d => {
+  fetch("tuner/fetch_source", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({light_brightness: parseInt(el("led_brightness").value) || 0})}).then(r=>r.json()).then(d => {
     b.disabled = false; b.textContent = "Neues Bild von Kamera holen";
     if (d.ok) { el("srcimg").src = "tuner/source.jpg?ts=" + Date.now(); updatePreview(); }
     else { alert("Fehler: " + (d.error||"unbekannt")); }

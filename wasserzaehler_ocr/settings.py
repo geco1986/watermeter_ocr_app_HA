@@ -14,6 +14,7 @@ SETTINGS_KEYS = (
     "camera_entity",
     "light_entity",
     "light_warmup",
+    "light_brightness",
     "ocr_provider",
     "tflite_model",
     "ollama_url",

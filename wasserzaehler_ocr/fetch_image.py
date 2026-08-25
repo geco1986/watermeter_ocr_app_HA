@@ -13,8 +13,12 @@ import requests
 SUPERVISOR_API = "http://supervisor/core/api"
 
 
-def _call_service(domain: str, service: str, entity_id: str, timeout: int, log):
-    """Ruft einen HA-Service auf, z. B. light.turn_on / switch.turn_off."""
+def _call_service(domain: str, service: str, entity_id: str, timeout: int, log,
+                  data: dict = None):
+    """Ruft einen HA-Service auf, z. B. light.turn_on / switch.turn_off.
+
+    ``data`` wird zusaetzlich in die Payload gemischt (z. B. brightness_pct).
+    """
     token = os.environ.get("SUPERVISOR_TOKEN")
     if not token:
         raise RuntimeError(
@@ -22,8 +26,11 @@ def _call_service(domain: str, service: str, entity_id: str, timeout: int, log):
         )
     url = f"{SUPERVISOR_API}/services/{domain}/{service}"
     headers = {"Authorization": f"Bearer {token}"}
+    payload = {"entity_id": entity_id}
+    if data:
+        payload.update(data)
     resp = requests.post(
-        url, headers=headers, json={"entity_id": entity_id}, timeout=timeout
+        url, headers=headers, json=payload, timeout=timeout
     )
     if resp.status_code not in (200, 201):
         raise RuntimeError(
@@ -32,11 +39,14 @@ def _call_service(domain: str, service: str, entity_id: str, timeout: int, log):
         )
 
 
-def set_light(entity_id: str, on: bool, timeout: int, log):
+def set_light(entity_id: str, on: bool, timeout: int, log, brightness_pct=None):
     """Schaltet die Lampe der Kamera ein oder aus.
 
     Domaene (light/switch) wird aus der Entity-ID abgeleitet. Fehler beim
     Ausschalten werden nur geloggt, nicht geworfen - das Bild ist wichtiger.
+
+    ``brightness_pct`` (1-100) wird nur beim Einschalten und nur fuer
+    light-Entitaeten mitgesendet. 0 oder None = ohne Helligkeitsvorgabe.
     """
     if not entity_id:
         return  # keine Lampe konfiguriert -> nichts tun
@@ -47,12 +57,19 @@ def set_light(entity_id: str, on: bool, timeout: int, log):
             f"versuche es trotzdem.")
 
     service = "turn_on" if on else "turn_off"
+    data = None
+    if on and domain == "light" and brightness_pct:
+        try:
+            pct = int(brightness_pct)
+        except (TypeError, ValueError):
+            pct = 0
+        if 1 <= pct <= 100:
+            data = {"brightness_pct": pct}
     try:
-        _call_service(domain, service, entity_id, timeout, log)
-        log(f"Lampe {entity_id} -> {'AN' if on else 'AUS'}")
+        _call_service(domain, service, entity_id, timeout, log, data=data)
+        extra = f" ({data['brightness_pct']}%)" if data else ""
+        log(f"Lampe {entity_id} -> {'AN' + extra if on else 'AUS'}")
     except Exception as exc:
-        # Ausschalten soll den Ablauf nie abbrechen; Einschalten schon eher,
-        # aber wir loggen es und lassen den Aufrufer weitermachen.
         log(f"WARNUNG: Lampe schalten fehlgeschlagen: {exc}")
 
 

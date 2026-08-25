@@ -70,6 +70,7 @@ SETTINGS_DEFAULTS = {
     "camera_entity": "",
     "light_entity": "",
     "light_warmup": 10,
+    "light_brightness": 100,   # LED-Helligkeit in % (0 = ohne Vorgabe)
     "ocr_provider": "ollama_remote",
     "tflite_model": "",
     "ollama_url": "",
@@ -191,7 +192,8 @@ def process():
             if light_entity:
                 set_phase("fetch", "Lampe an, warte auf Ausleuchtung …")
                 fetch_image.set_light(light_entity, True,
-                                      timeout=15, log=log)
+                                      timeout=15, log=log,
+                                      brightness_pct=int(cfg.get("light_brightness", 100)))
                 if warmup > 0:
                     time.sleep(warmup)
             else:
@@ -787,13 +789,26 @@ def tuner_current():
 def tuner_fetch_source():
     """Holt ein frisches Kamerabild (mit Lampe) fuer den Tuner."""
     cfg = get_config(log)
+    data = request.get_json(silent=True) or {}
     raw_target = Path(cfg["src_path"])
     light_entity = cfg.get("light_entity", "")
     warmup = int(cfg.get("light_warmup", 10))
+
+    # Helligkeit: aus dem Request (Live-Regler) uebernehmen und speichern,
+    # damit auch der echte Ablauf (/process) sie nutzt.
+    brightness = cfg.get("light_brightness", 100)
+    if "light_brightness" in data:
+        try:
+            brightness = max(0, min(100, int(data["light_brightness"])))
+            settings.save(SETTINGS_PATH, {"light_brightness": brightness}, log)
+        except (TypeError, ValueError):
+            pass
+
     try:
         try:
             if light_entity:
-                fetch_image.set_light(light_entity, True, timeout=15, log=log)
+                fetch_image.set_light(light_entity, True, timeout=15, log=log,
+                                      brightness_pct=int(brightness))
                 if warmup > 0:
                     time.sleep(warmup)
             fetch_image.fetch_camera_image(
