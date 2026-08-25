@@ -1,11 +1,36 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.6.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.6.1.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
 > **Alle Einstellungen macht man in der eingebauten Weboberfläche** – die
 > Home-Assistant-Add-on-Konfiguration ist bewusst leer.
+
+## Voraussetzungen
+
+- **Home Assistant** mit Add-on-Store (Home Assistant OS oder Supervised).
+- Eine **Kamera-Entität**, die ein Standbild des Zählwerks liefert (z. B. eine
+  ESP32-CAM per ESPHome). Die Entity-ID trägst du in der Konfiguration ein.
+- *Optional* eine **Lampe/LED** als `light.`- oder `switch.`-Entität, die das
+  Zählwerk beim Fotografieren ausleuchtet. Die Helligkeit lässt sich einstellen,
+  sofern es eine `light.`-Entität mit Helligkeitsunterstützung ist.
+- Für die Ziffernerkennung je nach gewähltem Anbieter: nichts weiter
+  (Tesseract/TFLite laufen lokal im Add-on), ein erreichbarer **Ollama-Server**
+  oder ein **API-Schlüssel** für OpenAI/Gemini/Claude.
+
+## Die Weboberfläche
+
+Alles läuft über den Button **„Benutzeroberfläche öffnen"**. Oben in der
+Navigation gibt es fünf Seiten:
+
+- **Übersicht** – Status, letzte Ablesung, Log und „Jetzt auswerten".
+- **Konfiguration** – Kamera, Lampe, OCR-Anbieter, Ziffernzahl, KI-Prompt,
+  Plausibilität, interne Zugriffsadresse und der „Add-on neu starten"-Button.
+- **Bild-Tuner** – Bild holen, drehen, zuschneiden und LED-Helligkeit einstellen.
+- **Ziffern** – für TFLite: jede Ziffer als Box im Bild festlegen und die
+  Erkennung testen (AI-on-the-edge-Stil).
+- **CPU-Auslastung** – Live-Auslastung, vor allem für lokales Ollama nützlich.
 
 ## Schnellstart
 

@@ -16,10 +16,29 @@ Add-ons vorgenommen.
 > einem separaten Repository und wird über HACS installiert. Dieses Repository
 > hier ist nur das Add-on.
 
+## Voraussetzungen
+
+- **Home Assistant** mit Add-on-Store (Home Assistant OS oder Supervised).
+- Eine **Kamera-Entität**, die ein Standbild des Zählwerks liefert
+  (z. B. ESP32-CAM per ESPHome).
+- *Optional* eine **Lampe/LED** (`light.`- oder `switch.`-Entität) zum
+  Ausleuchten.
+- Für die Ziffernerkennung: nichts weiter (Tesseract/TFLite laufen lokal), oder
+  – je nach Wunsch – ein Ollama-Server bzw. ein API-Schlüssel für
+  OpenAI/Gemini/Claude.
+
+Ausführliche Details stehen in [`wasserzaehler_ocr/README.md`](wasserzaehler_ocr/README.md).
+
 ## Vor dem Hochladen zu GitHub
 
-Ersetze in `repository.yaml` den Platzhalter `DEIN-USER` durch deinen echten
-GitHub-Benutzernamen bzw. die echte Repo-URL.
+**Wichtig:** Ersetze an diesen Stellen den Platzhalter `DEIN-USER` durch deinen
+echten GitHub-Benutzernamen:
+
+- `repository.yaml` → Felder `url` und `maintainer`
+- der `git remote`-Befehl unten
+
+Passe außerdem, falls gewünscht, den Repository-Namen
+`wasserzaehler_ocr_addon` an.
 
 ## Installation über den Add-on-Store
 
@@ -37,7 +56,7 @@ GitHub-Benutzernamen bzw. die echte Repo-URL.
 ## Repository zu GitHub hochladen
 
 ```bash
-cd wasserzaehler_ocr_addon_repo
+cd wasserzaehler_ocr_addon      # in den Repo-Ordner wechseln
 git init
 git add .
 git commit -m "Initial commit: Wasserzähler OCR Add-on"
