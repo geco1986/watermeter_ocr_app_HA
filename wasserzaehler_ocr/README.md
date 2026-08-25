@@ -259,9 +259,11 @@ den Button „Benutzeroberfläche öffnen" (Ingress, durch Home Assistant
 authentifiziert).
 
 ### Über die Custom-Integration (empfohlen)
-Siehe das separate Integration-Repository „Wasserzähler OCR" – bindet
-Zählerstand, Durchfluss, Tagesverbrauch, Status usw. als native Entitäten ein,
-inklusive Eingabefeld zur Korrektur direkt auf der Geräteseite.
+Siehe das separate Integration-Repository
+[watermeter_ocr_integration](https://github.com/geco1986/watermeter_ocr_integration)
+(über HACS installierbar) – bindet Zählerstand, Durchfluss, Tagesverbrauch,
+Status usw. als native Entitäten ein, inklusive Eingabefeld zur Korrektur direkt
+auf der Geräteseite.
 
 ### Über REST-Sensoren (Alternative)
 ```yaml
