@@ -321,6 +321,7 @@ el("testBtn").addEventListener("click", () => {
   const sorted = [...rois].sort((a, b) => a.x - b.x);
   const st = el("testStatus"); st.className = "status"; st.textContent = "Erkenne …";
   el("grid").innerHTML = ""; el("resultLine").textContent = "";
+  [...document.querySelectorAll(".diag")].forEach(n => n.remove());
   fetch("digits/test", { method: "POST", headers: { "Content-Type": "application/json" },
                          body: JSON.stringify({ digit_rois: sorted, tflite_model: el("tflite_model").value,
                            tflite_input_range: el("tflite_input_range").value,
@@ -331,7 +332,27 @@ el("testBtn").addEventListener("click", () => {
       }
       st.className = d.ok ? "status ok" : "status err";
       st.textContent = d.ok ? "Erkennung erfolgreich." : ("Hinweis: " + (d.error || ""));
-      (d.details || []).forEach(det => {
+      // Diagnose: welches Modell lief wirklich + Warnung bei degenerierter Ausgabe
+      const dets = d.details || [];
+      const typeName = d.out_classes === 11 ? "dig-class11" : d.out_classes === 100 ? "dig-class100"
+        : d.out_classes === 10 ? "dig-cont/class10" : ("? " + d.out_classes);
+      const vals = dets.map(x => x.value);
+      const avgConf = dets.length ? dets.reduce((a, x) => a + (x.confidence || 0), 0) / dets.length : 0;
+      const allSame = vals.length > 1 && vals.every(v => v === vals[0]);
+      const info = document.createElement("div");
+      info.className = "note diag";
+      info.innerHTML = "Verwendetes Modell: <strong>" + (d.model || "?") + "</strong> (" + typeName + ", "
+        + (d.out_classes || "?") + " Klassen)";
+      el("grid").parentNode.insertBefore(info, el("grid"));
+      if (allSame && avgConf < 0.1) {
+        const warn = document.createElement("div");
+        warn.className = "status err diag";
+        warn.innerHTML = "⚠ Das Modell gibt für alle Ziffern denselben Wert bei ~0 % Konfidenz aus – "
+          + "es reagiert nicht sinnvoll auf die Eingabe. Anderes Modell wählen (dig-class11 oder dig-class100) "
+          + "und Normalisierung auf 0–255 stellen.";
+        el("grid").parentNode.insertBefore(warn, el("grid"));
+      }
+      dets.forEach(det => {
         const c = document.createElement("div");
         c.className = "digit";
         const nan = det.value === null;

@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.6.2.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.6.4.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -196,8 +196,10 @@ Stellschrauben (alle oben auf der Ziffern-Seite):
   der Nachbarstelle – eine höhere Ziffer wird erst dann als erhöht gewertet,
   wenn die Stelle rechts davon durch Null gegangen ist (wie bei AI on the Edge).
   Wirkt bei den kontinuierlichen Modellen **dig-cont** und **dig-class100**.
-- **Modell wählen**: Für Rollenzählwerke sind **dig-class100** oder **dig-cont**
-  meist besser als dig-class11, weil sie Zwischenstellungen (z. B. 6.8) auflösen.
+- **Modell wählen**: Für Rollenzählwerke ist **dig-class100** meist die beste
+  Wahl (feine Auflösung, robuster Klassifikator), gefolgt von **dig-class11**.
+  **dig-cont** ist oft das schwächste der drei – wenn es unzuverlässig ist,
+  zuerst dig-class100 probieren.
 
 Die Erkennungs-Übersicht zeigt zu jeder Ziffer den **Rohwert** (z. B. „roh 6.8")
 und die Konfidenz – daran erkennst du schnell, ob Boxen, Modell und

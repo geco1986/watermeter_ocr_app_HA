@@ -88,41 +88,47 @@ def _load_interpreter(model_path):
     return interp
 
 
+def _softmax(vec):
+    import math
+    m = max(vec)
+    exps = [math.exp(v - m) for v in vec]
+    s = sum(exps) or 1.0
+    return [e / s for e in exps]
+
+
 def _class11_digit(vec):
     """dig-class11: Index 0-9 = Ziffer, 10 = 'N' (unklar). (ziffer|None, konf)."""
-    n = len(vec)
-    idx = int(max(range(n), key=lambda i: vec[i]))
-    mx = float(vec[idx])
-    ssum = float(sum(v for v in vec if v > 0)) or 1.0
-    conf = max(0.0, min(1.0, mx / ssum))
-    return (None if idx == 10 else idx), conf
+    p = _softmax(vec)
+    idx = int(max(range(len(p)), key=lambda i: p[i]))
+    return (None if idx == 10 else idx), p[idx]
 
 
 def _continuous_value(vec):
-    """dig-cont / dig-class100: Ausgabevektor -> kontinuierlicher Wert 0..10.
+    """dig-cont / dig-class100: Ausgabevektor -> (wert 0..10, konfidenz 0..1).
 
-    Die Ausgaben werden als Gewichte auf einem Kreis der Laenge n aufgefasst
-    (die Ziffern 0..9 bzw. 0.0..9.9 sind zyklisch: nach 9 kommt wieder 0). Der
-    zirkulaere Mittelwert liefert eine Zwischenstellung (z. B. 6.8) - genau die
-    hohe Aufloesung, die AI-on-the-edge nutzt. Zusaetzlich: Konfidenz 0..1
-    (Konzentration der Verteilung).
+    Robust für Logit- UND Softmax-Ausgaben:
+    - argmax bestimmt die Ziffer (invariant gegenüber Softmax).
+    - dig-class100 (100 Klassen): wert = argmax / 10  (0.0..9.9, feine Auflösung).
+    - 10-Klassen-Modelle (dig-cont/class10): argmax = Ziffer, mit parabolischer
+      Interpolation der Nachbarn für eine Zwischenstellung.
+    - Konfidenz = Softmax-Wahrscheinlichkeit des argmax.
     """
-    import math
     n = len(vec)
-    w = [v if v > 0 else 0.0 for v in vec]
-    s = sum(w)
-    if s <= 0:
-        w = [1.0] * n
-        s = float(n)
-    sin_s = sum(w[i] * math.sin(2 * math.pi * i / n) for i in range(n))
-    cos_s = sum(w[i] * math.cos(2 * math.pi * i / n) for i in range(n))
-    ang = math.atan2(sin_s, cos_s)
-    if ang < 0:
-        ang += 2 * math.pi
-    pos = ang / (2 * math.pi) * n          # [0, n)
-    value = (pos / n * 10.0) % 10.0        # [0, 10)
-    conf = math.hypot(sin_s, cos_s) / s    # 0..1 (Laenge des Resultierenden)
-    return value, max(0.0, min(1.0, conf))
+    p = _softmax(vec)
+    k = int(max(range(n), key=lambda i: p[i]))
+    conf = p[k]
+    if n == 100:
+        value = k / 10.0
+    elif n <= 10:
+        left = p[(k - 1) % n]
+        right = p[(k + 1) % n]
+        denom = left - 2 * p[k] + right
+        delta = (0.5 * (left - right) / denom) if denom < 0 else 0.0
+        delta = max(-0.5, min(0.5, delta))
+        value = ((k + delta) % n) * (10.0 / n)
+    else:
+        value = (k / max(1, n - 1)) * 9.0
+    return value % 10.0, max(0.0, min(1.0, conf))
 
 
 def _apply_rollover(values):

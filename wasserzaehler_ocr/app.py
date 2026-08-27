@@ -945,9 +945,20 @@ def digits_test():
         else:
             value = float(int(digits))
 
+    # Diagnose: welches Modell lief wirklich (Klassenzahl verrät den Typ)?
+    out_classes = None
+    try:
+        mp = tflite_ocr.resolve_model(model)
+        if mp is not None:
+            it = tflite_ocr._load_interpreter(mp)
+            out_classes = int(it.get_output_details()[0]["shape"][-1])
+    except Exception:  # noqa: BLE001
+        pass
+
     return jsonify({
         "ok": err is None,
         "model": model,
+        "out_classes": out_classes,
         "digits": digits,
         "value": value,
         "main_digits": main_d,
