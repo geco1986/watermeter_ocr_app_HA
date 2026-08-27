@@ -17,6 +17,8 @@ SETTINGS_KEYS = (
     "light_brightness",
     "ocr_provider",
     "tflite_model",
+    "tflite_input_range",
+    "tflite_rollover_fix",
     "ollama_url",
     "ollama_model",
     "ollama_timeout",

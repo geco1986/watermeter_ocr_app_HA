@@ -73,6 +73,8 @@ SETTINGS_DEFAULTS = {
     "light_brightness": 100,   # LED-Helligkeit in % (0 = ohne Vorgabe)
     "ocr_provider": "ollama_remote",
     "tflite_model": "",
+    "tflite_input_range": "0-255",   # oder "0-1" (Werte /255) – je nach Modell
+    "tflite_rollover_fix": True,      # Nachbarziffer-Korrektur für Rollenzählwerke
     "ollama_url": "",
     "ollama_model": "moondream",
     "ollama_timeout": 120,
@@ -932,7 +934,9 @@ def digits_test():
     main_d = int(cfg["ocr_main_digits"])
     dec_d = int(cfg["ocr_decimal_digits"])
     digits, details, err = tflite_ocr.recognize(
-        str(tmp), model, main_d, dec_d, log, rois=rois, with_crops=True)
+        str(tmp), model, main_d, dec_d, log, rois=rois, with_crops=True,
+        input_range=(data.get("tflite_input_range") or cfg.get("tflite_input_range", "0-255")),
+        rollover_fix=bool(data.get("tflite_rollover_fix", cfg.get("tflite_rollover_fix", True))))
 
     value = None
     if digits and len(digits) == main_d + dec_d:

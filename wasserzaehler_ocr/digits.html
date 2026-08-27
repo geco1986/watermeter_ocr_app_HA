@@ -33,6 +33,7 @@
   #baseimg { display:block; max-width:100%; user-select:none; -webkit-user-drag:none; }
   .roi { position:absolute; border:2px solid var(--amber); background:rgba(210,153,34,0.12);
          cursor:move; touch-action:none; }
+  .roi.sel { border-color:var(--accent2); background:rgba(47,129,247,0.18); box-shadow:0 0 0 1px var(--accent2); }
   .roi .idx { position:absolute; top:-9px; left:-2px; background:var(--amber); color:#000;
               font-size:11px; font-weight:700; padding:0 4px; border-radius:4px; }
   .roi .handle { position:absolute; right:-7px; bottom:-7px; width:14px; height:14px;
@@ -68,6 +69,20 @@
       <select id="tflite_model" style="flex:1;background:#0d1117;color:var(--fg);border:1px solid #2a3441;border-radius:6px;padding:9px 10px;"><option value="">(lade Modelle …)</option></select>
       <button id="modelReloadBtn" class="ghost" type="button" style="white-space:nowrap;">Ordner neu einlesen</button>
     </div>
+    <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; align-items:center;">
+      <label style="margin:0;font-size:13px;">Eingabe-Normalisierung
+        <select id="tflite_input_range" style="margin-left:6px;background:#0d1117;color:var(--fg);border:1px solid #2a3441;border-radius:6px;padding:6px 8px;">
+          <option value="0-255">0–255 (AI-on-the-edge-Standard)</option>
+          <option value="0-1">0–1 (Werte /255)</option>
+        </select>
+      </label>
+      <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="tflite_rollover_fix" checked style="width:auto;"> Rollover-Korrektur (Rollenzählwerk)
+      </label>
+    </div>
+    <div class="note">Bringt ein Modell schlechte Ergebnisse, hilft oft ein Wechsel der Normalisierung
+      (0–255 ↔ 0–1). Die Rollover-Korrektur wirkt bei kontinuierlichen Modellen (dig-cont, dig-class100)
+      und korrigiert rollende Ziffern anhand der Nachbarstelle.</div>
     <label for="led_brightness" style="display:block;font-size:13px;margin:14px 0 5px;">
       LED-Helligkeit: <span id="led_val">100</span>% <span style="color:var(--muted);font-size:12px;">(0 = ohne Vorgabe)</span></label>
     <input type="range" id="led_brightness" min="0" max="100" step="5" value="100" style="width:100%;">
@@ -87,11 +102,15 @@
     <div class="note" id="countnote"></div>
     <div class="btns">
       <button id="distributeBtn" class="ghost" type="button">Gleichmäßig verteilen</button>
+      <button id="unifyBtn" class="ghost" type="button">Vereinheitlichen</button>
       <button id="addBtn" class="ghost" type="button">Ziffer +</button>
       <button id="removeBtn" class="ghost" type="button">Ziffer −</button>
       <button id="reloadImgBtn" class="ghost" type="button">Bild neu laden</button>
       <button id="saveBtn" type="button">Positionen speichern</button>
     </div>
+    <div class="note">Tipp: Box anklicken zum Auswählen, dann mit den <strong>Pfeiltasten</strong> verschieben
+      (mit <strong>Umschalt</strong> Größe ändern). „Vereinheitlichen" gibt allen Boxen dieselbe Größe und
+      Höhe wie der aktuell ausgewählten (bzw. der ersten) – so sitzt jede Ziffer gleich im Rahmen.</div>
     <div class="status" id="saveStatus"></div>
   </div>
 
@@ -138,23 +157,35 @@ function renderBoxes() {
     " Ziffern (" + mainD + " Haupt + " + decD + " Nachkomma)" +
     (rois.length !== total ? " — Anzahl stimmt noch nicht!" : "");
   el("countnote").style.color = (rois.length === total) ? "var(--muted)" : "var(--amber)";
+  highlight();
 }
 
 // ---- Ziehen & Größe ----
 let active = null;
+let selectedIndex = -1;
+function applyBoxStyle(i) {
+  const b = stage.querySelectorAll(".roi")[i];
+  if (!b) return;
+  const W = img.clientWidth, H = img.clientHeight, r = rois[i];
+  b.style.left = (r.x * W) + "px"; b.style.top = (r.y * H) + "px";
+  b.style.width = (r.w * W) + "px"; b.style.height = (r.h * H) + "px";
+}
+function highlight() {
+  [...stage.querySelectorAll(".roi")].forEach((n, i) => n.classList.toggle("sel", i === selectedIndex));
+}
 function attachDrag(boxEl, index) {
   const handle = boxEl.querySelector(".handle");
   boxEl.addEventListener("pointerdown", ev => {
     if (ev.target === handle) return;
     ev.preventDefault();
-    active = { mode: "move", index, sx: ev.clientX, sy: ev.clientY,
-               orig: {...rois[index]} };
+    selectedIndex = index; highlight();
+    active = { mode: "move", index, sx: ev.clientX, sy: ev.clientY, orig: {...rois[index]} };
     boxEl.setPointerCapture(ev.pointerId);
   });
   handle.addEventListener("pointerdown", ev => {
     ev.preventDefault(); ev.stopPropagation();
-    active = { mode: "resize", index, sx: ev.clientX, sy: ev.clientY,
-               orig: {...rois[index]} };
+    selectedIndex = index; highlight();
+    active = { mode: "resize", index, sx: ev.clientX, sy: ev.clientY, orig: {...rois[index]} };
     handle.setPointerCapture(ev.pointerId);
   });
 }
@@ -192,12 +223,48 @@ function distribute() {
 }
 el("distributeBtn").addEventListener("click", distribute);
 el("addBtn").addEventListener("click", () => {
-  rois.push({ x: 0.4, y: 0.2, w: 0.12, h: 0.6 }); renderBoxes();
+  rois.push({ x: 0.4, y: 0.2, w: 0.12, h: 0.6 }); selectedIndex = rois.length - 1; renderBoxes();
 });
-el("removeBtn").addEventListener("click", () => { rois.pop(); renderBoxes(); });
-el("reloadImgBtn").addEventListener("click", () => {
-  img.src = "digits/base.jpg?ts=" + Date.now();
+el("removeBtn").addEventListener("click", () => { rois.pop(); if (selectedIndex >= rois.length) selectedIndex = rois.length - 1; renderBoxes(); });
+el("reloadImgBtn").addEventListener("click", () => { img.src = "digits/base.jpg?ts=" + Date.now(); });
+
+// Alle Boxen auf Größe/Höhe der ausgewählten (bzw. ersten) bringen
+el("unifyBtn").addEventListener("click", () => {
+  if (!rois.length) return;
+  const ref = rois[selectedIndex >= 0 ? selectedIndex : 0];
+  rois = rois.map(r => ({ x: r.x, y: ref.y, w: ref.w, h: ref.h }));
+  renderBoxes();
 });
+
+// Pfeiltasten: ausgewählte Box verschieben / mit Umschalt Größe ändern
+document.addEventListener("keydown", ev => {
+  if (selectedIndex < 0 || selectedIndex >= rois.length) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || "";
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(tag)) return;
+  const keys = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (!keys[ev.key]) return;
+  ev.preventDefault();
+  const W = img.clientWidth, H = img.clientHeight;
+  const stepX = 1 / W, stepY = 1 / H, [dx, dy] = keys[ev.key];
+  const r = rois[selectedIndex];
+  if (ev.shiftKey) {
+    r.w = clamp(r.w + dx * stepX, 0.02, 1 - r.x);
+    r.h = clamp(r.h + dy * stepY, 0.05, 1 - r.y);
+  } else {
+    r.x = clamp(r.x + dx * stepX, 0, 1 - r.w);
+    r.y = clamp(r.y + dy * stepY, 0, 1 - r.h);
+  }
+  applyBoxStyle(selectedIndex);
+});
+
+// Erkennungs-Optionen sofort speichern
+function saveDecodeOpts() {
+  fetch("settings", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tflite_input_range: el("tflite_input_range").value,
+                           tflite_rollover_fix: el("tflite_rollover_fix").checked }) }).catch(() => {});
+}
+el("tflite_input_range").addEventListener("change", saveDecodeOpts);
+el("tflite_rollover_fix").addEventListener("change", saveDecodeOpts);
 
 // ---- Speichern ----
 el("saveBtn").addEventListener("click", () => {
@@ -255,7 +322,9 @@ el("testBtn").addEventListener("click", () => {
   const st = el("testStatus"); st.className = "status"; st.textContent = "Erkenne …";
   el("grid").innerHTML = ""; el("resultLine").textContent = "";
   fetch("digits/test", { method: "POST", headers: { "Content-Type": "application/json" },
-                         body: JSON.stringify({ digit_rois: sorted, tflite_model: el("tflite_model").value }) })
+                         body: JSON.stringify({ digit_rois: sorted, tflite_model: el("tflite_model").value,
+                           tflite_input_range: el("tflite_input_range").value,
+                           tflite_rollover_fix: el("tflite_rollover_fix").checked }) })
     .then(r => r.json()).then(d => {
       if (d.error && !(d.details && d.details.length)) {
         st.className = "status err"; st.textContent = "Fehler: " + d.error; return;
@@ -266,9 +335,11 @@ el("testBtn").addEventListener("click", () => {
         const c = document.createElement("div");
         c.className = "digit";
         const nan = det.value === null;
+        const raw = (det.raw === null || det.raw === undefined) ? "" : '<div class="conf">roh ' + det.raw + '</div>';
         c.innerHTML =
           (det.thumb ? '<img src="' + det.thumb + '">' : '') +
           '<div class="val' + (nan ? ' nan' : '') + '">' + (nan ? '?' : det.value) + '</div>' +
+          raw +
           '<div class="conf">' + Math.round((det.confidence || 0) * 100) + '%</div>';
         el("grid").appendChild(c);
       });
@@ -287,6 +358,8 @@ function init() {
     decD = parseInt(s.ocr_decimal_digits) || 0;
     total = mainD + decD;
     loadModels(s.tflite_model || "");
+    if (s.tflite_input_range) el("tflite_input_range").value = s.tflite_input_range;
+    el("tflite_rollover_fix").checked = (s.tflite_rollover_fix !== false);
     const bv = (s.light_brightness === undefined || s.light_brightness === null) ? 100 : s.light_brightness;
     el("led_brightness").value = bv; el("led_val").textContent = bv;
     const saved = Array.isArray(s.digit_rois) ? s.digit_rois : [];

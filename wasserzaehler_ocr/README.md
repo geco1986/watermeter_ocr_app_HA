@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.6.1.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.6.2.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
@@ -179,6 +179,29 @@ Boxen definiert, wird der Ausschnitt ersatzweise gleichmäßig aufgeteilt.
 
 Die Boxen werden als **normierte** Koordinaten (0–1) gespeichert und passen
 sich damit unterschiedlichen Bildauflösungen an.
+
+### Genauigkeit verbessern
+
+Wenn ein AI-on-the-edge-Modell schlechte Ergebnisse liefert, helfen diese
+Stellschrauben (alle oben auf der Ziffern-Seite):
+
+- **Boxen genau setzen** – „Vereinheitlichen" gibt allen Boxen dieselbe Größe
+  und Höhe wie der ausgewählten, danach jede Box anklicken und mit den
+  **Pfeiltasten** fein verschieben (mit **Umschalt** Größe ändern). Jede Ziffer
+  sollte mittig und gleich im Rahmen sitzen.
+- **Eingabe-Normalisierung** umschalten: `0–255` (AI-on-the-edge-Standard) oder
+  `0–1` (Werte /255). Je nach Modell liefert die eine oder andere deutlich
+  bessere Ergebnisse – im Zweifel beide mit „Erkennung testen" vergleichen.
+- **Rollover-Korrektur** (Rollenzählwerk): korrigiert rollende Ziffern anhand
+  der Nachbarstelle – eine höhere Ziffer wird erst dann als erhöht gewertet,
+  wenn die Stelle rechts davon durch Null gegangen ist (wie bei AI on the Edge).
+  Wirkt bei den kontinuierlichen Modellen **dig-cont** und **dig-class100**.
+- **Modell wählen**: Für Rollenzählwerke sind **dig-class100** oder **dig-cont**
+  meist besser als dig-class11, weil sie Zwischenstellungen (z. B. 6.8) auflösen.
+
+Die Erkennungs-Übersicht zeigt zu jeder Ziffer den **Rohwert** (z. B. „roh 6.8")
+und die Konfidenz – daran erkennst du schnell, ob Boxen, Modell und
+Normalisierung passen.
 
 ## Installation
 

@@ -377,7 +377,9 @@ def _tflite(image_path, opts, main_digits, decimal_digits, timeout, log, last_va
     log(f"Lese Bild mit TFLite-Modell '{model}' (lokale Ziffernerkennung) ...")
     rois = opts.get("digit_rois") or None
     digits, err = tflite_ocr.read_digits(
-        image_path, model, main_digits, decimal_digits, log, rois=rois)
+        image_path, model, main_digits, decimal_digits, log, rois=rois,
+        input_range=opts.get("tflite_input_range", "0-255"),
+        rollover_fix=bool(opts.get("tflite_rollover_fix", True)))
     if err:
         return {"raw_digits": None, "error": err}
     return _finalize(digits, main_digits, decimal_digits, log)
