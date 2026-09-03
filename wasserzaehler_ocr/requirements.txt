@@ -1,6 +1,16 @@
-flask
-pillow
-requests
-pytesseract
-numpy
-ai-edge-litert
+# Python-Abhaengigkeiten des Add-ons.
+#
+# Versionen sind mit unterer Grenze und einer Obergrenze pro Major-Version
+# gepinnt: das haelt den Build reproduzierbar (kein ueberraschender Bruch
+# durch ein Major-Update einer Abhaengigkeit) und laesst gleichzeitig
+# Patch-/Minor-Updates mit Sicherheitsfixes zu.
+#
+# Getestet mit python:3.11-slim (Debian Bookworm, glibc >= 2.36) auf
+# amd64 und aarch64.
+
+flask>=3.0,<4            # Webserver (Ingress-UI + interne HTTP-API)
+pillow>=10.4,<13         # Bildverarbeitung (Rotieren/Zuschneiden)
+requests>=2.32,<3        # HTTP-Client (HA-API, Ollama, Cloud-Anbieter)
+pytesseract>=0.3.13,<1   # Anbindung an Tesseract-OCR (Anbieter "tesseract")
+numpy>=1.26,<3           # Arrays fuer die TFLite-Ziffernerkennung
+ai-edge-litert>=1.4,<3   # LiteRT-Runtime (Anbieter "tflite"), manylinux_2_27-Wheels

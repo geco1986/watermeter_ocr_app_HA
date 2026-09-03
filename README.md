@@ -32,10 +32,18 @@ Ausführliche Details stehen in [`wasserzaehler_ocr/README.md`](wasserzaehler_oc
 
 ## Vor dem Hochladen zu GitHub
 
-Dieses Repository ist bereits auf den Account **geco1986** eingestellt
-(`repository.yaml` sowie der `git`-Befehl unten). Wer es forkt, ersetzt
-`geco1986` bzw. den Repo-Namen `watermeter_ocr_addon` einfach durch die eigenen
-Werte.
+Dieses Repository ist durchgängig auf den Account **geco1986** und den
+Repo-Namen **watermeter_ocr_addon** eingestellt (`repository.yaml`, dieser
+Text und der `git`-Befehl unten stimmen überein). Wer es unter einem anderen
+Namen veröffentlicht, ersetzt vorher an genau diesen Stellen:
+
+| Platzhalter | Wo | Ersetzen durch |
+|---|---|---|
+| `geco1986` | `repository.yaml`, `LICENSE`, diese README | deinen GitHub-Account |
+| `watermeter_ocr_addon` | `repository.yaml`, diese README | deinen gewünschten Repo-Namen |
+
+> Der **Add-on-Slug** (`wasserzaehler_ocr`, der Ordnername) ist davon
+> unabhängig und muss *nicht* geändert werden.
 
 ## Installation über den Add-on-Store
 
@@ -65,10 +73,12 @@ git push -u origin main
 
 ## Inhalt
 
+- `repository.yaml` – macht dieses Repo zu einem Add-on-Store-Repository.
 - `wasserzaehler_ocr/` – das eigentliche Add-on (config.yaml, Dockerfile,
-  Python-Module, translations, Icon)
+  Python-Module, translations, Icon, `CHANGELOG.md`).
 - `wasserzaehler_ocr/pi_setup/` – optionales Skript, falls du Ollama auf einem
-  separaten Raspberry Pi betreiben willst
+  separaten Raspberry Pi betreiben willst.
+- `.gitignore`, `LICENSE` – Repo-Standarddateien.
 
 Details zu Konfiguration, Endpunkten und dem `set_value`-Aufruf in
 `wasserzaehler_ocr/README.md`.

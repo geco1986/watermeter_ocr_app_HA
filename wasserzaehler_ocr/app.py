@@ -1,14 +1,15 @@
-"""Wasserzaehler Rotate & OCR - Home-Assistant-Add-on (Ollama-Variante).
+"""Wasserzaehler Rotate & OCR - Home-Assistant-Add-on.
 
 Kette pro /process-Aufruf:
-  1. Bild von der HA-Kamera-Entitaet holen (camera_proxy)
-  2. Rotieren + Zuschneiden (Logik aus cam_rotate.py)
-  3. Zugeschnittenes Bild an ausgelagerten Ollama-Vision-Server schicken
-  4. Ergebnis als JSON an Home Assistant zurueckgeben
+  1. Bild von der HA-Kamera-Entitaet holen (camera_proxy), optional mit Lampe
+  2. Rotieren + Zuschneiden (siehe rotate.py, im Bild-Tuner eingestellt)
+  3. Ziffern per gewaehltem OCR-Anbieter lesen (siehe ocr_providers.py):
+     Tesseract, TFLite, Ollama (lokal/extern) oder Cloud (OpenAI/Gemini/Claude)
+  4. Plausibilitaet pruefen und Ergebnis als JSON an Home Assistant zurueckgeben
 
-Endpunkte:
-  GET /process  -> ganze Kette; liefert JSON
-  GET /health   -> {"status": "ok"}
+Die App lauscht auf zwei Ports: 8099 (Ingress-Weboberflaeche) und 5000
+(interne HTTP-API fuer REST-Sensor/Integration). Alle Endpunkte sind unten
+mit @app.route dokumentiert; die wichtigsten sind /process und /health.
 """
 
 import json

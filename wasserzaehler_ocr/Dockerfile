@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
-LABEL io.hass.version="1.6.4" \
-      io.hass.type="app" \
+LABEL io.hass.version="1.6.5" \
+      io.hass.type="addon" \
+      io.hass.name="Wasserzähler OCR" \
       io.hass.arch="amd64|aarch64"
 
 # curl/tar/zstd: fuer den optionalen Ollama-Download zur Laufzeit (nur bei
