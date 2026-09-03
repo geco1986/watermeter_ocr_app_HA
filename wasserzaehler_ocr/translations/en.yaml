@@ -1,4 +1,0 @@
-# Alle Einstellungen laufen jetzt über die eingebaute Weboberfläche
-# (Button "Benutzeroberfläche öffnen" -> Konfiguration). Die Supervisor-
-# Konfiguration hat bewusst keine Optionen mehr.
-configuration: {}
