@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<base href="./">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wasserzähler OCR – CPU-Auslastung</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .headline { display:flex; align-items:baseline; gap:10px; }
+  .headline .big { font-size:2.1rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .headline .unit { color:var(--muted); font-size:0.85rem; }
+  .overall { display:flex; align-items:center; gap:14px; margin-top:14px; }
+  .overall .bar { flex:1; height:14px; border-radius:999px; background:var(--input-bg);
+                  border:1px solid var(--border); overflow:hidden; }
+  .overall .fill { height:100%; background:var(--accent2); transition:width .4s; }
+  .overall .val { font-variant-numeric:tabular-nums; font-size:0.85rem; width:52px; text-align:right; }
+  .cores { display:grid; grid-template-columns:1fr; gap:10px; margin-top:6px; }
+  .core-row { display:grid; grid-template-columns:56px 1fr 52px; align-items:center; gap:10px; }
+  .core-row .label { color:var(--muted); font-size:0.72rem; }
+  .core-bar { height:18px; border-radius:6px; background:var(--input-bg); border:1px solid var(--border);
+              overflow:hidden; position:relative; }
+  .core-fill { height:100%; transition:width .4s, background-color .4s; }
+  .core-val { font-variant-numeric:tabular-nums; font-size:0.8rem; text-align:right; }
+  .spark { display:flex; align-items:flex-end; gap:1px; height:18px; }
+  .spark .b { width:3px; background:var(--border); border-radius:1px; }
+  .updated { text-align:right; font-size:0.68rem; color:var(--muted); margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="drop" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 40 L70 120 a62 62 0 1 0 116 0 Z" fill="#2f81f7"/>
+      <rect x="86" y="132" width="26" height="34" fill="#fff"/>
+      <rect x="116" y="132" width="26" height="34" fill="#fff"/>
+      <rect x="146" y="132" width="26" height="34" fill="#e23b3b"/>
+    </svg>
+    <div><h1>CPU-Auslastung</h1><div class="sub">Alle Kerne einzeln, live – Home Assistant zeigt hier normalerweise nur einen Gesamtwert</div></div>
+  </header>
+  <nav>
+    <a href=".">Übersicht</a>
+    <a href="config">Konfiguration</a>
+    <a href="tuner">Bild-Tuner</a>
+    <a href="digits">Ziffern</a>
+    <a href="cpu" class="active">CPU-Auslastung</a>
+  </nav>
+
+  <div class="card">
+    <h2>Dieser Host</h2>
+    <div class="headline">
+      <span class="big" id="coreCount">–</span>
+      <span class="unit" id="coreCountLabel">CPU-Kerne</span>
+    </div>
+    <div class="overall">
+      <div class="bar"><div class="fill" id="overallFill" style="width:0%"></div></div>
+      <div class="val" id="overallVal">– %</div>
+    </div>
+    <div class="muted" style="margin-top:8px;">Durchschnitt über alle Kerne</div>
+  </div>
+
+  <div class="card">
+    <h2>Auslastung je Kern</h2>
+    <div class="desc">Aktualisiert sich jede Sekunde. Der kleine Balkenverlauf rechts zeigt die letzten ~30 Sekunden.</div>
+    <div class="cores" id="coresWrap"></div>
+    <div class="updated" id="updatedText"></div>
+  </div>
+
+  <div class="card">
+    <h2>Aktuelle CPU-Regler</h2>
+    <div class="desc">Zur Einordnung, was in der Konfiguration eingestellt ist.</div>
+    <div class="kv"><span class="k">OCR-Anbieter</span><span class="v" id="cfg_provider">–</span></div>
+    <div class="kv"><span class="k">CPU-Threads pro Anfrage</span><span class="v" id="cfg_thread">–</span></div>
+    <div class="kv"><span class="k">Max. CPU-Auslastung (eingebautes Ollama)</span><span class="v" id="cfg_percent">–</span></div>
+  </div>
+</div>
+
+<script>
+const el = id => document.getElementById(id);
+
+function color(pct) {
+  if (pct < 40) return "#2ea043";
+  if (pct < 75) return "#d29922";
+  return "#e23b3b";
+}
+
+function sparkline(history) {
+  const max = Math.max(100, ...history);
+  return history.map(v => {
+    const h = Math.max(1, Math.round((v / 100) * 18));
+    return `<div class="b" style="height:${h}px;background:${color(v)}"></div>`;
+  }).join("");
+}
+
+function render(d) {
+  el("coreCount").textContent = d.core_count;
+  el("coreCountLabel").textContent = d.core_count === 1 ? "CPU-Kern" : "CPU-Kerne";
+  el("overallFill").style.width = d.overall_percent + "%";
+  el("overallFill").style.background = color(d.overall_percent);
+  el("overallVal").textContent = d.overall_percent.toFixed(1) + " %";
+
+  const wrap = el("coresWrap");
+  wrap.innerHTML = "";
+  d.cores.forEach((c, i) => {
+    const row = document.createElement("div");
+    row.className = "core-row";
+    row.innerHTML = `
+      <div class="label">Kern ${i}</div>
+      <div class="core-bar"><div class="core-fill" style="width:${c.percent}%;background:${color(c.percent)}"></div></div>
+      <div class="core-val">${c.percent.toFixed(1)}%</div>
+    `;
+    wrap.appendChild(row);
+    const spark = document.createElement("div");
+    spark.className = "spark";
+    spark.style.gridColumn = "1 / -1";
+    spark.innerHTML = sparkline(c.history);
+    // Sparkline dezent unter die Zeile - optional, nur wenn Platz gewünscht:
+    // wrap.appendChild(spark);
+  });
+
+  const ts = new Date(d.updated_at * 1000);
+  el("updatedText").textContent = d.updated_at
+    ? "aktualisiert " + ts.toLocaleTimeString()
+    : "warte auf erste Messung …";
+
+  const providerLabels = {tesseract:"Tesseract", ollama_local:"Ollama (im Add-on)",
+    ollama_remote:"Ollama (extern)", openai:"OpenAI", gemini:"Gemini", claude:"Claude"};
+  el("cfg_provider").textContent = providerLabels[d.ocr_provider] || d.ocr_provider || "–";
+  el("cfg_thread").textContent = d.configured_num_thread > 0 ? d.configured_num_thread : "automatisch";
+  el("cfg_percent").textContent = d.configured_cpu_percent > 0 ? d.configured_cpu_percent + "%" : "unbegrenzt";
+}
+
+function poll() {
+  fetch("cpu_stats").then(r => r.json()).then(render).catch(() => {});
+}
+
+poll();
+setInterval(poll, 1500);
+</script>
+</body>
+</html>

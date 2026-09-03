@@ -1,0 +1,260 @@
+/* ==========================================================================
+   Wasserzähler OCR – gemeinsames Design-System für alle Add-on-Seiten.
+   Wird über die Route /app.css ausgeliefert und von jeder HTML-Seite per
+   <link rel="stylesheet" href="app.css"> eingebunden.
+
+   Enthält Design-Tokens (mit automatischem Hell-/Dunkel-Modus je nach
+   System) und alle seitenübergreifenden Komponenten. Seiten-spezifische
+   Regeln stehen weiterhin im kleinen <style>-Block der jeweiligen Seite,
+   nutzen aber dieselben Tokens (var(--…)), damit alles zum Theme passt.
+   ========================================================================== */
+
+/* --- Design-Tokens: Hell (Standard) --- */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --fg: #1a2430;
+  --muted: #5c6b7a;
+  --border: #e3e8ee;
+  --input-bg: #ffffff;
+  --kv-border: #eef1f4;
+  --nav-active-bg: #e8f0fb;
+
+  --accent: #1668c4;
+  --accent-strong: #0f5bb0;
+  --accent2: #2f81f7;
+  --ok: #1a7f37;
+  --warn: #d32f2f;
+  --amber: #b7791f;
+
+  --ring: rgba(47, 129, 247, 0.35);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.05);
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --space: 16px;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* --- Design-Tokens: Dunkel (folgt der Systemeinstellung) --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1419;
+    --card: #1a2129;
+    --fg: #e6edf3;
+    --muted: #8b98a5;
+    --border: #2a3441;
+    --input-bg: #0d1117;
+    --kv-border: #222c36;
+    --nav-active-bg: #16202c;
+
+    --accent: #2f81f7;
+    --accent-strong: #3b8dff;
+    --accent2: #4a9bff;
+    --ok: #3fb950;
+    --warn: #f0616d;
+    --amber: #d29922;
+
+    --ring: rgba(47, 129, 247, 0.5);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.28);
+  }
+}
+
+/* --- Grundlagen --- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+.wrap.narrow { max-width: 760px; }
+
+/* --- Kopfbereich --- */
+header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.drop { width: 38px; height: 38px; flex: none; }
+h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
+.sub { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+/* --- Navigation (Pill-Tabs) --- */
+nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 22px;
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  transition: color .15s, border-color .15s, background .15s;
+}
+nav a:hover {
+  color: var(--fg);
+  border-color: var(--accent2);
+}
+nav a.active {
+  color: var(--accent);
+  border-color: var(--accent2);
+  background: var(--nav-active-bg);
+}
+
+/* --- Karten --- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+.card .desc, .desc { color: var(--muted); font-size: 0.8rem; margin-bottom: 14px; }
+
+/* --- Buttons --- */
+button, a.btn {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s, transform .05s, box-shadow .15s;
+}
+button:hover, a.btn:hover { background: var(--accent-strong); }
+button:active, a.btn:active { transform: translateY(1px); }
+button:disabled { opacity: .55; cursor: default; transform: none; }
+button.ghost, a.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+button.ghost:hover, a.btn.ghost:hover {
+  background: var(--nav-active-bg);
+  border-color: var(--accent2);
+}
+button.warn { background: var(--warn); }
+button.warn:hover { background: var(--warn); filter: brightness(1.08); }
+
+.btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+/* --- Formulare --- */
+label { display: block; font-size: 0.82rem; margin: 12px 0 5px; color: var(--fg); }
+label .hint { color: var(--muted); font-weight: normal; }
+
+input[type=text], input[type=number], input[type=password],
+select, textarea {
+  width: 100%;
+  background: var(--input-bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+textarea {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 120px;
+}
+input[type=checkbox] {
+  width: 16px; height: 16px; vertical-align: middle; margin-right: 8px;
+  accent-color: var(--accent);
+}
+
+/* --- Fokus-Ringe (Barrierefreiheit) --- */
+:is(button, a.btn, nav a, input, select, textarea):focus-visible {
+  outline: none;
+  border-color: var(--accent2);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* --- Kleintext / Code --- */
+.muted { color: var(--muted); font-size: 0.78rem; }
+.hint { color: var(--muted); font-size: 0.78rem; margin-top: 6px; }
+.note { color: var(--muted); font-size: 0.78rem; margin-top: 10px; }
+code {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+/* --- Schlüssel/Wert-Zeilen --- */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--kv-border);
+  font-size: 0.9rem;
+}
+.kv:last-child { border-bottom: 0; }
+.kv .k { color: var(--muted); }
+.kv .v { font-variant-numeric: tabular-nums; text-align: right; }
+.big { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- Statuszeilen & Pills --- */
+.status { font-size: 0.82rem; margin-top: 12px; min-height: 18px; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--warn); }
+.status.amber { color: var(--amber); }
+
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.75rem; font-weight: 500; }
+.pill.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.pill.err { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+/* --- Ladeanzeige --- */
+.spin {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
