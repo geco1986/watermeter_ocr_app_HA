@@ -61,13 +61,14 @@ function load(){
       : '<span class="pill err"><svg class="icon"><use href="#ic-alert"></use></svg>'+t("idx.unreachable")+'</span>';
   }).catch(()=>{ el("v_provstatus").textContent="–"; });
   fetch("cpu_stats").then(r=>r.json()).then(d=>{
-    el("v_cores").textContent = d.cores!==undefined ? d.cores : (d.per_core?d.per_core.length:"–");
-    const o = (d.overall!==undefined?d.overall:d.overall_percent);
-    el("v_cpu").textContent = (o!==undefined&&o!==null) ? (Math.round(o)+" %") : "–";
+    const n = (d.core_count!=null && d.core_count>0) ? d.core_count : (Array.isArray(d.cores)?d.cores.length:null);
+    el("v_cores").textContent = (n!=null) ? n : "–";
+    const o = (d.overall_percent!=null?d.overall_percent:d.overall);
+    el("v_cpu").textContent = (o!=null) ? (Math.round(o)+" %") : "–";
   }).catch(()=>{});
   fetch("system_info").then(r=>r.json()).then(d=>{
-    const a=d.avail_gb??d.available_gb, tg=d.total_gb;
-    el("v_ram").textContent = (a!==undefined&&tg!==undefined) ? (a+" / "+tg+" GB") : "–";
+    const a=d.mem_available_gb, tg=d.mem_total_gb;
+    el("v_ram").textContent = (a!=null && tg!=null) ? (a+" / "+tg+" GB") : "–";
   }).catch(()=>{});
   fetch("hostinfo").then(r=>r.json()).then(d=>{ el("v_url").textContent = d.internal_url || "–"; }).catch(()=>{});
 }
