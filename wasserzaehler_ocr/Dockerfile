@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL io.hass.version="1.6.6" \
+LABEL io.hass.version="1.6.7" \
       io.hass.type="addon" \
       io.hass.name="Wasserzähler OCR" \
       io.hass.arch="amd64|aarch64"
@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY fetch_image.py rotate.py ocr_providers.py plausibility.py tuning.py \
      settings.py sysinfo.py history.py cpustats.py tflite_ocr.py app.py ./
-COPY tuner.html index.html config.html cpu.html digits.html app.css run.sh ./
+COPY tuner.html index.html config.html cpu.html digits.html help.html info.html app.css app.js run.sh ./
 COPY models/ ./models/
 RUN chmod +x run.sh
 

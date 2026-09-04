@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wasserzähler – Rotation & Zuschnitt</title>
 <link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
 <style>
   .cols { display:flex; flex-wrap:wrap; gap:20px; }
   .col { flex:1; min-width:300px; }
@@ -20,39 +21,28 @@
 </style>
 </head>
 <body>
+<div id="appbar"></div>
 <div class="wrap">
-  <header>
-    <svg class="drop" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-      <path d="M128 40 L70 120 a62 62 0 1 0 116 0 Z" fill="#2f81f7"/>
-      <rect x="86" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="116" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="146" y="132" width="26" height="34" fill="#e23b3b"/>
-    </svg>
-    <div><h1>Bild-Tuner</h1><div class="sub">Rotation &amp; Zuschnitt live einstellen, Vorschau prüfen, dann speichern.</div></div>
-  </header>
-  <nav>
-    <a href=".">Übersicht</a>
-    <a href="config">Konfiguration</a>
-    <a href="tuner" class="active">Bild-Tuner</a>
-    <a href="digits">Ziffern</a>
-    <a href="cpu">CPU-Auslastung</a>
-  </nav>
+  <div class="page-head">
+    <h2 data-i18n="tun.title"></h2>
+    <p data-i18n="tun.sub"></p>
+  </div>
   <div class="cols">
   <div class="col">
     <div class="card">
-      <h2>Quellbild</h2>
+      <h2><svg class="icon"><use href="#ic-image"></use></svg><span data-i18n="tun.source"></span></h2>
       <div class="src"><img id="srcimg" alt="Quellbild" src="tuner/source.jpg?ts=0"></div>
       <label for="led_brightness" style="display:block;font-size:13px;margin:12px 0 5px;">
         LED-Helligkeit: <span id="led_val">100</span>% <span class="muted">(0 = ohne Vorgabe)</span></label>
       <input type="range" id="led_brightness" min="0" max="100" step="5" value="100" style="width:100%;">
       <div class="btns">
-        <button id="fetchBtn">Neues Bild von Kamera holen</button>
+        <button id="fetchBtn"><svg class="icon"><use href="#ic-camera"></use></svg><span data-i18n="btn.fetchImg"></span></button>
       </div>
       <div class="hint">Holt ein frisches Bild (mit Lampe in dieser Helligkeit, wie im echten Ablauf). Dauert kurz.</div>
     </div>
 
     <div class="card">
-      <h2>Einstellungen</h2>
+      <h2><svg class="icon"><use href="#ic-tune"></use></svg><span data-i18n="tun.settings"></span></h2>
       <label>Drehwinkel <span class="val" id="v_angle"></span></label>
       <div class="row">
         <input type="range" id="angle" min="-180" max="180" step="1">
@@ -89,18 +79,18 @@
 
   <div class="col">
     <div class="card">
-      <h2>Vorschau (Ergebnis)</h2>
+      <h2><svg class="icon"><use href="#ic-crop"></use></svg><span data-i18n="tun.preview"></span></h2>
       <div class="preview"><img id="preview" alt="Vorschau"></div>
       <div class="status" id="pstatus"></div>
     </div>
 
     <div class="card">
-      <h2>Speichern</h2>
+      <h2><svg class="icon"><use href="#ic-save"></use></svg><span data-i18n="common.save"></span></h2>
       <div>Aktuelle Werte:</div>
       <div class="hint" id="curvals"></div>
       <div class="btns">
-        <button id="saveBtn">Werte speichern (überschreiben)</button>
-        <button id="resetBtn" class="ghost">Auf Add-on-Konfig zurücksetzen</button>
+        <button id="saveBtn"><svg class="icon"><use href="#ic-save"></use></svg><span data-i18n="btn.saveOverride"></span></button>
+        <button id="resetBtn" class="ghost"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="btn.resetConfig"></span></button>
       </div>
       <div class="status" id="sstatus"></div>
       <div class="hint">Gespeicherte Werte gelten sofort für alle nächsten Ablesungen,

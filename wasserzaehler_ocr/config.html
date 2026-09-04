@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wasserzähler OCR – Konfiguration</title>
 <link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
 <style>
   .checkrow { display:flex; align-items:center; margin:12px 0; font-size:0.9rem; }
   .provider-fields { border-left:2px solid var(--border); padding-left:14px; margin-top:14px; display:none; }
@@ -24,26 +25,15 @@
 </style>
 </head>
 <body>
+<div id="appbar"></div>
 <div class="wrap narrow">
-  <header>
-    <svg class="drop" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-      <path d="M128 40 L70 120 a62 62 0 1 0 116 0 Z" fill="#2f81f7"/>
-      <rect x="86" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="116" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="146" y="132" width="26" height="34" fill="#e23b3b"/>
-    </svg>
-    <div><h1>Konfiguration</h1><div class="sub">Alle Einstellungen – wirken sofort, kein Neustart nötig</div></div>
-  </header>
-  <nav>
-    <a href=".">Übersicht</a>
-    <a href="config" class="active">Konfiguration</a>
-    <a href="tuner">Bild-Tuner</a>
-    <a href="digits">Ziffern</a>
-    <a href="cpu">CPU-Auslastung</a>
-  </nav>
+  <div class="page-head">
+    <h2 data-i18n="cfg.title"></h2>
+    <p data-i18n="cfg.sub"></p>
+  </div>
 
   <div class="card">
-    <h2>Zugriffsadresse für Home Assistant</h2>
+    <h2><svg class="icon"><use href="#ic-router"></use></svg><span data-i18n="cfg.addr"></span></h2>
     <div class="desc">Interne Docker-Adresse dieses Add-ons – so wie bei der Frigate-App
       (z. B. <code>http://ccab4aaf-frigate:5000</code>). Diese Adresse aus dem
       Home-Assistant-Netz heraus für den REST-Sensor bzw. die Integration verwenden.
@@ -52,13 +42,13 @@
     <label>Interne Adresse <span class="hint">automatisch ermittelt</span></label>
     <div style="display:flex; gap:10px; align-items:center;">
       <input type="text" id="internal_url" readonly style="font-family:ui-monospace,Menlo,Consolas,monospace;">
-      <button id="copyUrlBtn" class="ghost" type="button" style="white-space:nowrap;">Kopieren</button>
+      <button id="copyUrlBtn" class="ghost" type="button" style="white-space:nowrap;"><svg class="icon"><use href="#ic-copy"></use></svg><span data-i18n="btn.copy"></span></button>
     </div>
     <div class="note" id="hostinfo_note"></div>
   </div>
 
   <div class="card">
-    <h2>Kamera &amp; Lampe</h2>
+    <h2><svg class="icon"><use href="#ic-camera"></use></svg><span data-i18n="cfg.cam"></span></h2>
     <div class="desc">Welche Home-Assistant-Entitäten für das Foto verwendet werden.</div>
     <label>Kamera-Entität <span class="hint">z. B. camera.esp32_cam_esp32_kamera</span></label>
     <input type="text" id="camera_entity">
@@ -69,7 +59,7 @@
   </div>
 
   <div class="card">
-    <h2>OCR-Anbieter</h2>
+    <h2><svg class="icon"><use href="#ic-cloud"></use></svg><span data-i18n="cfg.provider"></span></h2>
     <div class="desc">Wer die Ziffern liest. Tesseract ist am einfachsten (kein Modell, aber schwächer bei
       gewölbten Rollenzählwerken). Ollama liest lokal oder über einen eigenen Server. Cloud-Anbieter sind
       meist am zuverlässigsten, kosten aber pro Anfrage und senden das Bild extern.</div>
@@ -97,7 +87,7 @@
       <label>Modell <span class="hint">aus dem Modell-Ordner</span></label>
       <div style="display:flex; gap:10px; align-items:center;">
         <select id="tflite_model"><option value="">(lade Modelle …)</option></select>
-        <button id="tfliteReloadBtn" class="ghost" type="button" style="white-space:nowrap;">Ordner neu einlesen</button>
+        <button id="tfliteReloadBtn" class="ghost" type="button" style="white-space:nowrap;"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="btn.rescan"></span></button>
       </div>
       <div class="note" id="tflite_note">Modelle liegen im Ordner <code>/data/models</code>
         (benutzereigen, bleibt bei Updates erhalten) sowie den mitgelieferten unter
@@ -123,14 +113,14 @@
       <div class="note">Beide Regler bremsen die Erkennung, wenn sie zu eng gesetzt sind – gut zum
         Schonen des Home-Assistant-Hosts, aber Ablesungen dauern dann länger.</div>
       <div class="btns" style="margin-top:14px;">
-        <button id="pruneLocalBtn" class="ghost" type="button">Ungenutzte Modelle löschen</button>
+        <button id="pruneLocalBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-delete"></use></svg><span data-i18n="btn.delUnused"></span></button>
       </div>
       <div class="note">Entfernt alle im Add-on heruntergeladenen Ollama-Modelle bis auf das oben
         eingetragene – schafft Speicherplatz auf dem Home-Assistant-Host. Gelöschte Modelle werden bei
         erneuter Nutzung automatisch neu geladen.</div>
       <div class="status" id="pruneLocalStatus"></div>
       <div class="btns" style="margin-top:16px;">
-        <button id="restartBtn" class="ghost" type="button">Add-on neu starten</button>
+        <button id="restartBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="btn.restart"></span></button>
       </div>
       <div class="note"><strong>Wichtig:</strong> Nach dem Ändern des lokalen Modells zuerst
         „Einstellungen speichern", dann hier neu starten – erst dann wird das neue Modell geladen
@@ -148,7 +138,7 @@
       <label>CPU-Threads pro Anfrage <span class="hint">0 = automatisch. Wirkt auf dem externen Server.</span></label>
       <input type="number" id="ollama_num_thread_remote" min="0" step="1">
       <div class="btns" style="margin-top:14px;">
-        <button id="pruneRemoteBtn" class="ghost" type="button">Ungenutzte Modelle löschen</button>
+        <button id="pruneRemoteBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-delete"></use></svg><span data-i18n="btn.delUnused"></span></button>
       </div>
       <div class="note">Entfernt auf dem externen Ollama-Server alle heruntergeladenen Modelle bis auf das
         oben eingetragene. Gelöschte Modelle werden bei erneuter Nutzung automatisch neu geladen.</div>
@@ -178,7 +168,7 @@
   </div>
 
   <div class="card">
-    <h2>Systemspeicher &amp; Modellempfehlung</h2>
+    <h2><svg class="icon"><use href="#ic-ram"></use></svg><span data-i18n="cfg.mem"></span></h2>
     <div class="desc">Bezieht sich auf diesen Host (relevant für „Ollama – im Add-on selbst“).</div>
     <div class="ramwrap">
       <div class="rambar"><div class="rambar-fill" id="rambar" style="width:0%"></div></div>
@@ -189,7 +179,7 @@
   </div>
 
   <div class="card">
-    <h2>Ziffern des Zählwerks</h2>
+    <h2><svg class="icon"><use href="#ic-grid"></use></svg><span data-i18n="cfg.digits"></span></h2>
     <div class="row2">
       <div>
         <label>Hauptziffern (schwarz)</label>
@@ -203,7 +193,7 @@
   </div>
 
   <div class="card">
-    <h2>KI-Prompt</h2>
+    <h2><svg class="icon"><use href="#ic-terminal"></use></svg><span data-i18n="cfg.prompt"></span></h2>
     <div class="desc">Der Text, mit dem die KI zum Ablesen aufgefordert wird (gilt für Ollama, OpenAI,
       Gemini und Claude – nicht für Tesseract). Leer lassen, um den eingebauten Standard-Prompt zu verwenden.
       Folgende Platzhalter werden vor dem Senden automatisch ersetzt:
@@ -213,7 +203,7 @@
     <label>Prompt <span class="hint">leer = Standard</span></label>
     <textarea id="ocr_prompt" placeholder="Leer lassen für den eingebauten Standard-Prompt …"></textarea>
     <div class="btns" style="display:flex; gap:10px; margin-top:10px;">
-      <button id="promptDefaultBtn" class="ghost" type="button">Standard-Prompt einsetzen</button>
+      <button id="promptDefaultBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-terminal"></use></svg><span data-i18n="btn.defaultPrompt"></span></button>
     </div>
     <div class="note">Der Standard-Prompt fordert die KI auf, alle Ziffern von links nach rechts zu lesen
       und ausschließlich ein JSON-Objekt der Form <code>{ "raw_digits": "…" }</code> zurückzugeben.
@@ -221,7 +211,7 @@
   </div>
 
   <div class="card">
-    <h2>Plausibilitätsprüfung</h2>
+    <h2><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="cfg.plaus"></span></h2>
     <div class="desc">Verhindert, dass ein OCR-Ausrutscher einen falschen Zählerstand einträgt.</div>
     <div class="checkrow"><input type="checkbox" id="plausibility_check">
       <span>Prüfung aktiv (neuer Wert muss zum letzten passen)</span></div>
@@ -232,8 +222,8 @@
   </div>
 
   <div class="btns" style="display:flex; gap:10px;">
-    <button id="saveBtn">Speichern</button>
-    <button id="reloadBtn" class="ghost">Neu laden</button>
+    <button id="saveBtn"><svg class="icon"><use href="#ic-save"></use></svg><span data-i18n="common.save"></span></button>
+    <button id="reloadBtn" class="ghost"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="btn.reload"></span></button>
   </div>
   <div class="status" id="saveStatus"></div>
 </div>
@@ -306,7 +296,7 @@ function loadSystemInfo() {
     tbody.innerHTML = "";
     (d.table||[]).forEach(row => {
       const tr = document.createElement("tr");
-      const btn = row.fits ? `<button class="usebtn ghost" data-model="${row.model}">übernehmen</button>` : "";
+      const btn = row.fits ? `<button class="usebtn ghost" data-model="${row.model}"><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="btn.apply"></span></button>` : "";
       tr.innerHTML = `<td class="${row.fits?'fits':'nofits'}">${row.model}</td>
         <td class="hint">${row.min_ram_gb} GB</td>
         <td class="hint">${row.note}</td><td>${btn}</td>`;

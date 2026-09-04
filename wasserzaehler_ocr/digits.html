@@ -2,9 +2,11 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<base href="./">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ziffern festlegen – Wasserzähler OCR</title>
 <link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
 <style>
   #stage { position:relative; display:inline-block; max-width:100%; border:1px solid var(--border);
            border-radius:var(--radius-sm); overflow:hidden; touch-action:none; }
@@ -29,32 +31,21 @@
 </style>
 </head>
 <body>
+<div id="appbar"></div>
 <div class="wrap">
-  <header>
-    <svg class="drop" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-      <path d="M128 40 L70 120 a62 62 0 1 0 116 0 Z" fill="#2f81f7"/>
-      <rect x="86" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="116" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="146" y="132" width="26" height="34" fill="#e23b3b"/>
-    </svg>
-    <div><h1>Ziffern festlegen</h1><div class="sub">AI on the Edge – jede Ziffer als Box festlegen und die Erkennung testen</div></div>
-  </header>
-  <nav>
-    <a href=".">Übersicht</a>
-    <a href="config">Konfiguration</a>
-    <a href="tuner">Bild-Tuner</a>
-    <a href="digits" class="active">Ziffern</a>
-    <a href="cpu">CPU-Auslastung</a>
-  </nav>
+  <div class="page-head">
+    <h2 data-i18n="dig.title"></h2>
+    <p data-i18n="dig.sub"></p>
+  </div>
 
   <div class="card">
-    <h2>Bild &amp; Modell</h2>
+    <h2><svg class="icon"><use href="#ic-image"></use></svg><span data-i18n="dig.imgModel"></span></h2>
     <div class="desc">Wähle das TFLite-Modell (gilt auch für den normalen Ablauf) und hole bei Bedarf
       ein frisches Kamerabild in der gewünschten LED-Helligkeit, um die Ziffern darauf zu setzen.</div>
     <label for="tflite_model" style="display:block;font-size:13px;margin:6px 0 5px;">Modell</label>
     <div style="display:flex; gap:10px; align-items:center;">
       <select id="tflite_model" style="flex:1;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:9px 10px;"><option value="">(lade Modelle …)</option></select>
-      <button id="modelReloadBtn" class="ghost" type="button" style="white-space:nowrap;">Ordner neu einlesen</button>
+      <button id="modelReloadBtn" class="ghost" type="button" style="white-space:nowrap;"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="btn.rescan"></span></button>
     </div>
     <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; align-items:center;">
       <label style="margin:0;font-size:13px;">Eingabe-Normalisierung
@@ -74,13 +65,13 @@
       LED-Helligkeit: <span id="led_val">100</span>% <span style="color:var(--muted);font-size:12px;">(0 = ohne Vorgabe)</span></label>
     <input type="range" id="led_brightness" min="0" max="100" step="5" value="100" style="width:100%;">
     <div class="btns">
-      <button id="fetchBtn" class="ghost" type="button">Neues Bild von Kamera holen</button>
+      <button id="fetchBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-camera"></use></svg><span data-i18n="btn.fetchImg"></span></button>
     </div>
     <div class="status" id="fetchStatus"></div>
   </div>
 
   <div class="card">
-    <h2>Ziffern-Positionen</h2>
+    <h2><svg class="icon"><use href="#ic-grid"></use></svg><span data-i18n="dig.positions"></span></h2>
     <div class="desc">Ziehe für jede Ziffer eine Box an ihre Stelle im Bild (verschieben in der Mitte,
       Größe ändern an der blauen Ecke). Das Bild ist das zugeschnittene Zahlenfeld – schneide es vorher
       im <a href="tuner" style="color:var(--accent2)">Bild-Tuner</a> passend zu. Die Reihenfolge ergibt
@@ -88,12 +79,12 @@
     <div id="stage"><img id="baseimg" src="digits/base.jpg" alt="Basisbild"></div>
     <div class="note" id="countnote"></div>
     <div class="btns">
-      <button id="distributeBtn" class="ghost" type="button">Gleichmäßig verteilen</button>
-      <button id="unifyBtn" class="ghost" type="button">Vereinheitlichen</button>
-      <button id="addBtn" class="ghost" type="button">Ziffer +</button>
-      <button id="removeBtn" class="ghost" type="button">Ziffer −</button>
-      <button id="reloadImgBtn" class="ghost" type="button">Bild neu laden</button>
-      <button id="saveBtn" type="button">Positionen speichern</button>
+      <button id="distributeBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-tune"></use></svg><span data-i18n="btn.distribute"></span></button>
+      <button id="unifyBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-tune"></use></svg><span data-i18n="btn.unify"></span></button>
+      <button id="addBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-grid"></use></svg><span data-i18n="btn.digitPlus"></span></button>
+      <button id="removeBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-grid"></use></svg><span data-i18n="btn.digitMinus"></span></button>
+      <button id="reloadImgBtn" class="ghost" type="button"><svg class="icon"><use href="#ic-image"></use></svg><span data-i18n="btn.reloadImg"></span></button>
+      <button id="saveBtn" type="button"><svg class="icon"><use href="#ic-save"></use></svg><span data-i18n="btn.savePos"></span></button>
     </div>
     <div class="note">Tipp: Box anklicken zum Auswählen, dann mit den <strong>Pfeiltasten</strong> verschieben
       (mit <strong>Umschalt</strong> Größe ändern). „Vereinheitlichen" gibt allen Boxen dieselbe Größe und
@@ -102,11 +93,11 @@
   </div>
 
   <div class="card">
-    <h2>Erkennung testen</h2>
+    <h2><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="dig.test"></span></h2>
     <div class="desc">Wendet die aktuellen Boxen mit dem gewählten TFLite-Modell an und zeigt, was pro
       Ziffer erkannt wurde – wie bei AI on the Edge.</div>
     <div class="btns">
-      <button id="testBtn" type="button">Erkennung testen</button>
+      <button id="testBtn" type="button"><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="btn.testRec"></span></button>
     </div>
     <div class="status" id="testStatus"></div>
     <div class="result" id="resultLine"></div>

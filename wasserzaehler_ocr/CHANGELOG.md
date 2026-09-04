@@ -4,7 +4,31 @@ Alle nennenswerten Änderungen an diesem Add-on werden hier festgehalten.
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/),
 die Versionierung an [SemVer](https://semver.org/lang/de/).
 
-## 1.6.6
+## 1.6.7
+
+### Geändert
+- **Material-Design-Überarbeitung der gesamten Weboberfläche.** Neues,
+  self-contained Design-System (`app.css`) mit Material-angelehnten Karten,
+  Buttons, Formularfeldern, Elevation und Hell-/Dunkel-Modus. Keine externen
+  Schriften oder CDNs – funktioniert vollständig offline.
+- **Icons überall.** Inline-SVG-Icon-Sprite (`app.js`) für Navigation,
+  Kartenüberschriften und Schaltflächen.
+- **Mehrsprachigkeit (Deutsch/Englisch).** Automatische Erkennung der
+  Browsersprache plus sichtbarer DE/EN-Umschalter in der App-Bar; zentrale
+  i18n-Engine in `app.js`. Übersicht, Einrichtung und Info sind vollständig
+  zweisprachig; auf den übrigen Seiten sind Navigation, Titel, Kartentitel
+  und Schaltflächen übersetzt.
+- **Gemeinsame App-Bar mit Tab-Navigation** auf allen Seiten (statt pro Seite
+  wiederholtem Kopf/Menü).
+
+### Hinzugefügt
+- **Neue Seite „Einrichtung"** – Schritt-für-Schritt-Anleitung von der Kamera
+  bis zur Einbindung in Home Assistant.
+- **Neue Seite „Info & System"** – Add-on-Version, aktiver OCR-Anbieter und
+  dessen Status, CPU/RAM, interne Zugriffsadresse und Diagnose auf einen Blick.
+- `/health` liefert jetzt zusätzlich die Add-on-Version; neue Routen
+  `/app.js`, `/help`, `/info`.
+
 
 Modernisierte Weboberfläche – reine Design-Änderung, keine Funktionsänderung.
 

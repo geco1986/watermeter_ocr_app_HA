@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wasserzähler OCR – CPU-Auslastung</title>
 <link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
 <style>
   .headline { display:flex; align-items:baseline; gap:10px; }
   .headline .big { font-size:2.1rem; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -28,26 +29,15 @@
 </style>
 </head>
 <body>
+<div id="appbar"></div>
 <div class="wrap">
-  <header>
-    <svg class="drop" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-      <path d="M128 40 L70 120 a62 62 0 1 0 116 0 Z" fill="#2f81f7"/>
-      <rect x="86" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="116" y="132" width="26" height="34" fill="#fff"/>
-      <rect x="146" y="132" width="26" height="34" fill="#e23b3b"/>
-    </svg>
-    <div><h1>CPU-Auslastung</h1><div class="sub">Alle Kerne einzeln, live – Home Assistant zeigt hier normalerweise nur einen Gesamtwert</div></div>
-  </header>
-  <nav>
-    <a href=".">Übersicht</a>
-    <a href="config">Konfiguration</a>
-    <a href="tuner">Bild-Tuner</a>
-    <a href="digits">Ziffern</a>
-    <a href="cpu" class="active">CPU-Auslastung</a>
-  </nav>
+  <div class="page-head">
+    <h2 data-i18n="cpu.title"></h2>
+    <p data-i18n="cpu.sub"></p>
+  </div>
 
   <div class="card">
-    <h2>Dieser Host</h2>
+    <h2><svg class="icon"><use href="#ic-router"></use></svg><span data-i18n="cpu.host"></span></h2>
     <div class="headline">
       <span class="big" id="coreCount">–</span>
       <span class="unit" id="coreCountLabel">CPU-Kerne</span>
@@ -60,14 +50,14 @@
   </div>
 
   <div class="card">
-    <h2>Auslastung je Kern</h2>
+    <h2><svg class="icon"><use href="#ic-memory"></use></svg><span data-i18n="cpu.perCore"></span></h2>
     <div class="desc">Aktualisiert sich jede Sekunde. Der kleine Balkenverlauf rechts zeigt die letzten ~30 Sekunden.</div>
     <div class="cores" id="coresWrap"></div>
     <div class="updated" id="updatedText"></div>
   </div>
 
   <div class="card">
-    <h2>Aktuelle CPU-Regler</h2>
+    <h2><svg class="icon"><use href="#ic-tune"></use></svg><span data-i18n="cpu.regulators"></span></h2>
     <div class="desc">Zur Einordnung, was in der Konfiguration eingestellt ist.</div>
     <div class="kv"><span class="k">OCR-Anbieter</span><span class="v" id="cfg_provider">–</span></div>
     <div class="kv"><span class="k">CPU-Threads pro Anfrage</span><span class="v" id="cfg_thread">–</span></div>

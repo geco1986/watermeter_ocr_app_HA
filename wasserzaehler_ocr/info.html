@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<base href="./">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wasserzähler OCR – Info</title>
+<link rel="stylesheet" href="app.css">
+<script src="app.js"></script>
+<style>
+  .urlbox { display:flex; align-items:center; gap:10px; margin-top:6px; }
+  .urlbox code { flex:1; overflow:auto; padding:9px 11px; }
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<div class="wrap narrow">
+  <div class="page-head">
+    <h2 data-i18n="info.title"></h2>
+    <p data-i18n="info.sub"></p>
+  </div>
+
+  <div class="card">
+    <h2><svg class="icon"><use href="#ic-info"></use></svg><span data-i18n="info.versions"></span></h2>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-droplet"></use></svg><span data-i18n="info.addonVersion"></span></span><span class="v" id="v_version">–</span></div>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-cloud"></use></svg><span data-i18n="info.activeProvider"></span></span><span class="v" id="v_provider">–</span></div>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="info.providerStatus"></span></span><span class="v" id="v_provstatus">–</span></div>
+  </div>
+
+  <div class="card">
+    <h2><svg class="icon"><use href="#ic-memory"></use></svg><span data-i18n="info.system"></span></h2>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-memory"></use></svg><span data-i18n="info.cpuCores"></span></span><span class="v" id="v_cores">–</span></div>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-gauge"></use></svg><span data-i18n="info.cpuLoad"></span></span><span class="v" id="v_cpu">–</span></div>
+    <div class="kv"><span class="k"><svg class="icon"><use href="#ic-ram"></use></svg><span data-i18n="info.ram"></span></span><span class="v" id="v_ram">–</span></div>
+  </div>
+
+  <div class="card">
+    <h2><svg class="icon"><use href="#ic-router"></use></svg><span data-i18n="info.connectivity"></span></h2>
+    <label data-i18n="info.internalUrl"></label>
+    <div class="urlbox"><code id="v_url">–</code></div>
+    <div class="hint" data-i18n="info.internalHint"></div>
+  </div>
+
+  <div class="card">
+    <h2><svg class="icon"><use href="#ic-terminal"></use></svg><span data-i18n="info.diag"></span></h2>
+    <div class="btns" style="margin-top:0">
+      <button id="reloadBtn"><svg class="icon"><use href="#ic-refresh"></use></svg><span data-i18n="info.rerun"></span></button>
+    </div>
+    <div class="note" data-i18n="info.diagHint"></div>
+  </div>
+</div>
+
+<script>
+const el = id => document.getElementById(id);
+function load(){
+  fetch("health").then(r=>r.json()).then(d=>{ el("v_version").textContent = d.version || "–"; }).catch(()=>{});
+  fetch("status").then(r=>r.json()).then(s=>{ el("v_provider").textContent = WZ.providerLabel(s.provider); }).catch(()=>{});
+  fetch("ollama_status").then(r=>r.json()).then(d=>{
+    el("v_provstatus").innerHTML = d.reachable
+      ? '<span class="pill ok"><svg class="icon"><use href="#ic-check"></use></svg>'+t("idx.reachable")+'</span>'
+      : '<span class="pill err"><svg class="icon"><use href="#ic-alert"></use></svg>'+t("idx.unreachable")+'</span>';
+  }).catch(()=>{ el("v_provstatus").textContent="–"; });
+  fetch("cpu_stats").then(r=>r.json()).then(d=>{
+    el("v_cores").textContent = d.cores!==undefined ? d.cores : (d.per_core?d.per_core.length:"–");
+    const o = (d.overall!==undefined?d.overall:d.overall_percent);
+    el("v_cpu").textContent = (o!==undefined&&o!==null) ? (Math.round(o)+" %") : "–";
+  }).catch(()=>{});
+  fetch("system_info").then(r=>r.json()).then(d=>{
+    const a=d.avail_gb??d.available_gb, tg=d.total_gb;
+    el("v_ram").textContent = (a!==undefined&&tg!==undefined) ? (a+" / "+tg+" GB") : "–";
+  }).catch(()=>{});
+  fetch("hostinfo").then(r=>r.json()).then(d=>{ el("v_url").textContent = d.internal_url || "–"; }).catch(()=>{});
+}
+el("reloadBtn").addEventListener("click", load);
+window.addEventListener("wz:lang", load);
+load();
+</script>
+</body>
+</html>

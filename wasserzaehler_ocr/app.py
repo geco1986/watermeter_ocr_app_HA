@@ -383,7 +383,12 @@ def process():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "version": ADDON_VERSION})
+
+
+# Add-on-Version (identisch zu config.yaml / Dockerfile-Label); u. a. fuer die
+# Info-Seite und zur Anzeige in der Integration ueber /health.
+ADDON_VERSION = "1.6.7"
 
 
 # Der Port, auf dem die HTTP-API im Container lauscht (siehe unten und
@@ -771,6 +776,30 @@ def app_css():
         "Content-Type": "text/css; charset=utf-8",
         "Cache-Control": "no-cache",
     }
+
+
+@app.route("/app.js", methods=["GET"])
+def app_js():
+    """Liefert die gemeinsame Front-End-Logik (Icons, i18n, Navigation)."""
+    here = Path(__file__).parent / "app.js"
+    return here.read_text(encoding="utf-8"), 200, {
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Cache-Control": "no-cache",
+    }
+
+
+@app.route("/help", methods=["GET"])
+def help_page():
+    """Liefert die Einrichtungs-/Hilfe-Seite."""
+    here = Path(__file__).parent / "help.html"
+    return here.read_text(encoding="utf-8"), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/info", methods=["GET"])
+def info_page():
+    """Liefert die Info-/System-Seite."""
+    here = Path(__file__).parent / "info.html"
+    return here.read_text(encoding="utf-8"), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @app.route("/config", methods=["GET"])
