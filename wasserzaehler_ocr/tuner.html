@@ -144,7 +144,7 @@ function updatePreview() {
       `OK (${img.naturalWidth}×${img.naturalHeight} px)`; };
     img.onerror = () => { st.className="status err";
       st.textContent = "Fehler – Schnittwerte passen evtl. nicht ins Bild."; };
-    img.src = "tuner/preview.jpg?" + q + "&ts=" + Date.now();
+    img.src = "tuner/preview.jpg?" + q + "&ts=" + Date.now() + WZ.idParam();
   }, 200);
 }
 
@@ -186,7 +186,7 @@ el("fetchBtn").addEventListener("click", () => {
   fetch("tuner/fetch_source", {method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({light_brightness: parseInt(el("led_brightness").value) || 0})}).then(r=>r.json()).then(d => {
     b.disabled = false; b.textContent = "Neues Bild von Kamera holen";
-    if (d.ok) { el("srcimg").src = "tuner/source.jpg?ts=" + Date.now(); updatePreview(); }
+    if (d.ok) { el("srcimg").src = "tuner/source.jpg?ts=" + Date.now() + WZ.idParam(); updatePreview(); }
     else { alert("Fehler: " + (d.error||"unbekannt")); }
   }).catch(e => { b.disabled=false; b.textContent="Neues Bild von Kamera holen";
     alert("Fehler: " + e); });
@@ -219,6 +219,7 @@ el("resetBtn").addEventListener("click", () => {
     });
   });
 });
+window.addEventListener("load", () => { if (WZ.getMeter()) el("srcimg").src = "tuner/source.jpg?ts=" + Date.now() + WZ.idParam(); });
 </script>
 </body>
 </html>

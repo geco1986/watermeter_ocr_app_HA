@@ -4,6 +4,39 @@ Alle nennenswerten Änderungen an diesem Add-on werden hier festgehalten.
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/),
 die Versionierung an [SemVer](https://semver.org/lang/de/).
 
+## 1.7.0
+
+### Hinzugefügt
+- **Mehrere Zähler / Kameras.** Das Add-on kann jetzt beliebig viele Zähler
+  verwalten – jeder mit eigener Kamera, Lampe, eigenem Bildzuschnitt, eigenen
+  Ziffern-Boxen, eigenem OCR-Anbieter samt Prompt und Zugangsdaten sowie
+  eigenem gespeicherten Stand und Verlauf. Verwaltung (anlegen, umbenennen,
+  Typ ändern, löschen) direkt auf der Konfigurationsseite; oben in der Leiste
+  wählt man den aktiven Zähler.
+- **Zählertypen Wasser / Strom / Wärme.** Pro Zähler wählbar; die Übersicht
+  zeigt passende Einheiten (m³ bzw. kWh, Momentanwert als Durchfluss in L/min,
+  Leistung in W bzw. kW).
+- **Discovery-Endpunkt `GET /meters`** liefert die Zählerliste (`id`, `name`,
+  `type`) für die Integration ab v1.7.0.
+- **Neue Verwaltungs-Endpunkte** `POST /meters`, `POST /meter_update`,
+  `POST /meter_delete`, `POST /meter_active`.
+
+### Geändert
+- **`GET /process` akzeptiert `?id=<zähler>`** und liefert zusätzlich `id`,
+  `type` und einen typgerechten Momentanwert `rate` (Wasser weiterhin auch
+  `flow_rate_l_min`). Ohne `id` gilt der aktive Zähler (Rückwärtskompatibilität).
+- **`POST /set_value` akzeptiert `{id, value}`** und setzt den Stand des
+  jeweiligen Zählers.
+- **`/status`, `/settings`, `/tuner/*`, `/digits/*`, `/ollama_status`,
+  `/chart_data`** beziehen sich auf den gewählten Zähler (`?id`).
+- Zustand, Verlauf, Tuning und Bilder werden pro Zähler getrennt gespeichert
+  (`state_<id>.json`, `history_<id>.json`, `tuning_<id>.json`, `img_<id>_*.jpg`).
+
+### Migration
+- Ein bestehendes Einzel-Setup wird beim ersten Start automatisch als Zähler
+  „zaehler1" (Typ Wasser) übernommen – inklusive gespeichertem Stand, Verlauf
+  und Zuschnitt. Es geht nichts verloren.
+
 ## 1.6.7
 
 ### Geändert

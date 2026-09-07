@@ -16,6 +16,7 @@ import json
 import io
 import logging
 import os
+import shutil
 import socket
 import sys
 import time
@@ -30,12 +31,14 @@ import ocr_providers
 import plausibility
 import tuning
 import settings
+import meters
 import sysinfo
 import history
 import cpustats
 
 OPTIONS_PATH = Path("/data/options.json")
 SETTINGS_PATH = Path("/data/settings.json")
+METERS_PATH = Path("/data/meters.json")
 
 # Interne, feste Pfade - nicht ueber die Konfiguration einstellbar.
 PATHS = {
@@ -115,15 +118,51 @@ def load_options():
 LEGACY_OPTS = load_options()
 
 
-def get_config(log=None):
-    """Liefert die aktuell gueltige, vollstaendige Konfiguration.
+def get_config(log=None, meter_id=None):
+    """Liefert die aktuell gueltige, vollstaendige Konfiguration EINES Zaehlers.
 
     Wird pro Request neu berechnet, damit Aenderungen ueber die
-    Konfiguration-Webseite sofort greifen - ohne Add-on-Neustart.
+    Konfiguration-Webseite sofort greifen - ohne Add-on-Neustart. Ohne
+    ``meter_id`` gilt der aktive Zaehler (Rueckwaertskompatibilitaet).
+
+    Alle Pfade (Bild/Zustand/Verlauf/Tuning) werden pro Zaehler getrennt
+    abgeleitet - dadurch ist die gesamte Verarbeitungskette ohne weitere
+    Aenderungen mehrzaehlerfaehig.
     """
+    m = meters.resolve(METERS_PATH, meter_id)
+    mid = m["id"]
     cfg = dict(DEFAULTS)
-    cfg.update(settings.effective(SETTINGS_DEFAULTS, SETTINGS_PATH, log))
+    for k in settings.SETTINGS_KEYS:
+        if k in m:
+            cfg[k] = m[k]
+    cfg["src_path"] = f"/data/img_{mid}_src.jpg"
+    cfg["dst_path"] = f"/data/img_{mid}_dst.jpg"
+    cfg["last_value_path"] = f"/data/state_{mid}.json"
+    cfg["history_path"] = f"/data/history_{mid}.json"
+    cfg["tuning_path"] = f"/data/tuning_{mid}.json"
+    cfg["meter_id"] = mid
+    cfg["meter_name"] = m.get("name", mid)
+    cfg["meter_type"] = m.get("type", "water")
     return cfg
+
+
+def _rate_for_type(mtype, value, last_value, last_timestamp, now, log=None):
+    """Momentanwert je Zaehlertyp: Wasser L/min, Strom W, Waerme kW."""
+    if mtype == "water":
+        return plausibility.flow_rate_l_min(
+            value=value, last_value=last_value,
+            last_timestamp=last_timestamp, now=now, log=log)
+    if value is None or last_value is None or last_timestamp is None:
+        return 0.0
+    hours = (now - last_timestamp) / 3600.0
+    delta = value - last_value
+    if hours <= 0 or delta < 0:
+        return 0.0
+    if mtype == "electricity":
+        return round(delta / hours * 1000.0, 1)   # kWh/h -> W
+    if mtype == "heat":
+        return round(delta / hours, 3)            # kWh/h -> kW
+    return 0.0
 
 # Logging direkt nach stdout - Home Assistant zeigt das im Add-on-Protokoll an.
 logging.basicConfig(
@@ -146,7 +185,8 @@ PROCESS_STATE = {
     "phase_text": "bereit",
     "started_at": None,
     "finished_at": None,
-    "last_result": None,      # letztes /process-Ergebnis-dict
+    "last_result": None,      # letztes /process-Ergebnis-dict (zuletzt, egal welcher Zaehler)
+    "last_result_by_id": {},  # letztes Ergebnis je Zaehler-ID (fuer die Uebersicht)
 }
 
 
@@ -157,10 +197,33 @@ def log(msg: str) -> None:
     _LOG_BUFFER.append(f"{stamp}  {msg}")
 
 
-# Einmalige Migration: Werte aus einer alten Supervisor-Konfiguration (vor
-# der Umstellung auf die Web-UI-Konfiguration) in die neuen Einstellungen
-# uebernehmen, falls noch keine settings.json existiert.
-settings.migrate_from_legacy(SETTINGS_DEFAULTS, LEGACY_OPTS, SETTINGS_PATH, log=log)
+# Einmalige Initialisierung des Mehr-Zaehler-Setups: existiert noch keine
+# meters.json, wird aus der bisherigen Einzelzaehler-Konfiguration (settings.json
+# bzw. sehr alte Supervisor-options.json) automatisch ein erster Zaehler
+# "zaehler1" (Typ Wasser) erzeugt - inklusive Uebernahme von Zustand, Verlauf
+# und Tuning, damit nichts verloren geht.
+def bootstrap_meters():
+    if METERS_PATH.exists():
+        return
+    settings.migrate_from_legacy(SETTINGS_DEFAULTS, LEGACY_OPTS, SETTINGS_PATH, log=log)
+    legacy = settings.load(SETTINGS_PATH, log)
+    meter = {"id": "zaehler1", "name": "Wasser", "type": "water"}
+    for k in settings.SETTINGS_KEYS:
+        if k in legacy:
+            meter[k] = legacy[k]
+    meters.save(METERS_PATH, {"active": "zaehler1", "meters": [meter]}, log)
+    for old, new in (("/data/last_value.json", "/data/state_zaehler1.json"),
+                     ("/data/history.json", "/data/history_zaehler1.json"),
+                     ("/data/tuning.json", "/data/tuning_zaehler1.json")):
+        try:
+            if Path(old).exists() and not Path(new).exists():
+                shutil.copy2(old, new)
+        except OSError as exc:  # noqa: BLE001
+            log(f"Migration {old} -> {new} fehlgeschlagen: {exc}")
+    log("Mehr-Zaehler-Setup initialisiert (Zaehler 'zaehler1' aus bisheriger Konfiguration).")
+
+
+bootstrap_meters()
 
 
 def set_phase(phase: str, text: str) -> None:
@@ -175,8 +238,9 @@ app = Flask(__name__)
 
 @app.route("/process", methods=["GET"])
 def process():
-    cfg = get_config(log)
-    log("--- Start /process ---")
+    meter_id = request.args.get("id") or None
+    cfg = get_config(log, meter_id)
+    log(f"--- Start /process (Zaehler: {cfg['meter_id']}) ---")
     PROCESS_STATE["running"] = True
     PROCESS_STATE["started_at"] = time.time()
     PROCESS_STATE["finished_at"] = None
@@ -304,11 +368,11 @@ def process():
         # 6. Durchflussrate + Status + Fehlerzaehler + Zustand aktualisieren
         if valid:
             value = result["value"]
-            rate = plausibility.flow_rate_l_min(
-                value=value, last_value=last_value,
-                last_timestamp=last_timestamp, now=now, log=log,
-            )
-            result["flow_rate_l_min"] = rate
+            rate = _rate_for_type(cfg["meter_type"], value, last_value,
+                                  last_timestamp, now, log=log)
+            result["rate"] = rate
+            if cfg["meter_type"] == "water":
+                result["flow_rate_l_min"] = rate
             result["status"] = "ok"
             result["error_count"] = 0
             result["held"] = False
@@ -322,6 +386,7 @@ def process():
             # Kein frischer gueltiger Wert (OCR fehlgeschlagen ODER unplausibel).
             error_count += 1
             result["flow_rate_l_min"] = 0.0
+            result["rate"] = 0.0
             result["error_count"] = error_count
             result["status"] = result.get("error", "Fehler")
 
@@ -348,7 +413,10 @@ def process():
         if result.get("raw_digits") is not None and not result.get("held"):
             result["last_read_at"] = now
         set_phase("done", "Fertig.")
+        result["id"] = cfg["meter_id"]
+        result["type"] = cfg["meter_type"]
         PROCESS_STATE["last_result"] = result
+        PROCESS_STATE["last_result_by_id"][cfg["meter_id"]] = result
         # Status 200, solange ein gueltiger (frischer ODER gehaltener) Wert
         # vorliegt. Nur ganz ohne Wert (erster Lauf gescheitert) -> 422.
         status = 200 if result.get("value") is not None else 422
@@ -388,7 +456,64 @@ def health():
 
 # Add-on-Version (identisch zu config.yaml / Dockerfile-Label); u. a. fuer die
 # Info-Seite und zur Anzeige in der Integration ueber /health.
-ADDON_VERSION = "1.6.7"
+ADDON_VERSION = "1.7.0"
+
+
+@app.route("/meters", methods=["GET"])
+def meters_list():
+    """Discovery: Liste aller Zaehler fuer die Integration und die Web-UI."""
+    return jsonify({"meters": meters.public_list(METERS_PATH),
+                    "active": meters.active_id(METERS_PATH)})
+
+
+@app.route("/meters", methods=["POST"])
+def meters_add():
+    """Legt einen neuen Zaehler an."""
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "kein Name angegeben"}), 400
+    m = meters.add(METERS_PATH, name, data.get("type"), log)
+    return jsonify({"ok": True, "meter": {"id": m["id"], "name": m["name"], "type": m["type"]}})
+
+
+@app.route("/meter_update", methods=["POST"])
+def meters_update():
+    """Benennt einen Zaehler um / aendert seinen Typ."""
+    data = request.get_json(silent=True) or {}
+    m = meters.update(METERS_PATH, data.get("id"), name=data.get("name"),
+                      mtype=data.get("type"), log=log)
+    if not m:
+        return jsonify({"ok": False, "error": "Zaehler nicht gefunden"}), 404
+    return jsonify({"ok": True, "meter": {"id": m["id"], "name": m["name"], "type": m["type"]}})
+
+
+@app.route("/meter_delete", methods=["POST"])
+def meters_delete():
+    """Loescht einen Zaehler samt seiner Zustands-/Verlaufs-/Bilddateien."""
+    data = request.get_json(silent=True) or {}
+    mid = data.get("id")
+    if not meters.delete(METERS_PATH, mid, log):
+        return jsonify({"ok": False,
+                        "error": "Loeschen nicht moeglich (letzter Zaehler?)"}), 400
+    for pth in (f"/data/state_{mid}.json", f"/data/history_{mid}.json",
+                f"/data/tuning_{mid}.json", f"/data/img_{mid}_src.jpg",
+                f"/data/img_{mid}_dst.jpg"):
+        try:
+            Path(pth).unlink(missing_ok=True)
+        except OSError:
+            pass
+    PROCESS_STATE["last_result_by_id"].pop(mid, None)
+    return jsonify({"ok": True})
+
+
+@app.route("/meter_active", methods=["POST"])
+def meters_set_active():
+    """Merkt den zuletzt gewaehlten Zaehler serverseitig (Legacy-Fallback)."""
+    data = request.get_json(silent=True) or {}
+    if meters.set_active(METERS_PATH, data.get("id"), log):
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "Zaehler nicht gefunden"}), 404
 
 
 # Der Port, auf dem die HTTP-API im Container lauscht (siehe unten und
@@ -471,11 +596,13 @@ def set_value():
 
     Aufruf: /set_value?value=1265.500  (oder POST mit JSON {"value": 1265.5})
     """
-    cfg = get_config(log)
+    body = request.get_json(silent=True) or {}
+    meter_id = request.args.get("id") or body.get("id") or None
+    cfg = get_config(log, meter_id)
     # Wert aus Query-Parameter oder JSON-Body holen
     raw = request.args.get("value")
-    if raw is None and request.is_json:
-        raw = (request.get_json(silent=True) or {}).get("value")
+    if raw is None:
+        raw = body.get("value")
 
     if raw is None:
         return jsonify({"ok": False, "error": "kein 'value' angegeben"}), 400
@@ -505,7 +632,7 @@ def index():
 @app.route("/tuner/dst.jpg", methods=["GET"])
 def tuner_dst():
     """Liefert das zuletzt zugeschnittene Ergebnisbild (fuer die Landing-Page)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     dst = Path(cfg["dst_path"])
     if not dst.exists():
         return "kein Ergebnisbild vorhanden", 404
@@ -515,7 +642,7 @@ def tuner_dst():
 @app.route("/status", methods=["GET"])
 def status_endpoint():
     """Live-Prozessstatus + letztes Ergebnis + Zustand fuer die Uebersicht."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     state = plausibility.load_state(Path(cfg["last_value_path"]), log)
     running = PROCESS_STATE["running"]
     elapsed = None
@@ -527,11 +654,14 @@ def status_endpoint():
         "phase": PROCESS_STATE["phase"],
         "phase_text": PROCESS_STATE["phase_text"],
         "elapsed_s": elapsed,
-        "last_result": PROCESS_STATE["last_result"],
+        "last_result": PROCESS_STATE["last_result_by_id"].get(cfg["meter_id"]),
         "stored_value": state["value"],
         "stored_timestamp": state["timestamp"],
         "error_count": state["error_count"],
         "provider": cfg.get("ocr_provider", "ollama_remote"),
+        "meter_id": cfg["meter_id"],
+        "meter_name": cfg["meter_name"],
+        "type": cfg["meter_type"],
         "now": time.time(),
     })
 
@@ -545,7 +675,7 @@ def logs_endpoint():
 @app.route("/ollama_status", methods=["GET"])
 def ollama_status():
     """Prueft den aktiven OCR-Anbieter (Ollama erreichbar / Cloud-Key gesetzt)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     import urllib.request
 
     provider = cfg.get("ocr_provider", "ollama_remote")
@@ -615,7 +745,7 @@ def ollama_delete_unused():
     """
     import requests
 
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     data = request.get_json(silent=True) or {}
 
     provider = cfg.get("ocr_provider", "ollama_remote")
@@ -697,7 +827,7 @@ def cpu_stats():
     """Kernanzahl + Pro-Kern-Auslastung, für die CPU-Seite."""
     snap = cpustats.get_snapshot()
     # zur Einordnung: die aktuell konfigurierten CPU-Regler mitliefern
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     snap["configured_num_thread"] = cfg.get("ollama_num_thread", 0)
     snap["configured_cpu_percent"] = cfg.get("ollama_local_cpu_percent", 0)
     snap["ocr_provider"] = cfg.get("ocr_provider")
@@ -714,7 +844,7 @@ def cpu_page():
 @app.route("/chart_data", methods=["GET"])
 def chart_data():
     """Verbrauchsdaten (Liter) für Tag/Woche/Monat/Jahr, für die Grafik."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     data = history.get_chart_data(Path(cfg["history_path"]), time.time(), log)
     return jsonify(data)
 
@@ -727,7 +857,7 @@ def settings_get():
     gesetzt ist (has_*_key). Das Formular zeigt dann ein Platzhalter-Feld;
     ein leeres Feld beim Speichern lässt den bestehenden Schlüssel unangetastet.
     """
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     result = {k: cfg.get(k) for k in settings.SETTINGS_KEYS}
     for key in settings.SECRET_KEYS:
         result[f"has_{key}"] = bool(result.get(key))
@@ -743,7 +873,7 @@ def settings_post():
     Schlüssel NICHT (so muss man ihn nicht bei jeder Änderung neu eingeben).
     """
     data = request.get_json(silent=True) or {}
-    current = settings.load(SETTINGS_PATH, log)
+    mid = get_config(log, request.args.get("id") or None)["meter_id"]
 
     to_save = {}
     for key in settings.SETTINGS_KEYS:
@@ -755,7 +885,7 @@ def settings_post():
         to_save[key] = value
 
     try:
-        settings.save(SETTINGS_PATH, to_save, log)
+        meters.update_settings(METERS_PATH, mid, to_save, log)
         return jsonify({"ok": True})
     except Exception as exc:  # noqa: BLE001
         log(f"FEHLER beim Speichern der Einstellungen: {exc}")
@@ -819,7 +949,7 @@ def tuner_page():
 @app.route("/tuner/current", methods=["GET"])
 def tuner_current():
     """Aktuelle effektive Rotations-/Zuschnittwerte (fuer das Formular)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     eff = tuning.effective(cfg, Path(cfg["tuning_path"]), log)
     # Sicherstellen, dass alle erwarteten Schluessel da sind
     for k in tuning.TUNABLE_KEYS:
@@ -830,7 +960,7 @@ def tuner_current():
 @app.route("/tuner/fetch_source", methods=["POST"])
 def tuner_fetch_source():
     """Holt ein frisches Kamerabild (mit Lampe) fuer den Tuner."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     data = request.get_json(silent=True) or {}
     raw_target = Path(cfg["src_path"])
     light_entity = cfg.get("light_entity", "")
@@ -842,7 +972,8 @@ def tuner_fetch_source():
     if "light_brightness" in data:
         try:
             brightness = max(0, min(100, int(data["light_brightness"])))
-            settings.save(SETTINGS_PATH, {"light_brightness": brightness}, log)
+            meters.update_settings(METERS_PATH, cfg["meter_id"],
+                                   {"light_brightness": brightness}, log)
         except (TypeError, ValueError):
             pass
 
@@ -871,7 +1002,7 @@ def tuner_fetch_source():
 @app.route("/tuner/source.jpg", methods=["GET"])
 def tuner_source():
     """Liefert das aktuelle Quellbild."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     src = Path(cfg["src_path"])
     if not src.exists():
         return "kein Quellbild vorhanden", 404
@@ -881,7 +1012,7 @@ def tuner_source():
 @app.route("/tuner/preview.jpg", methods=["GET"])
 def tuner_preview():
     """Rendert eine Vorschau mit den uebergebenen Werten."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     src = Path(cfg["src_path"])
     try:
         img = rotate.render(
@@ -930,7 +1061,7 @@ def _render_base_image(cfg):
 @app.route("/digits/base.jpg", methods=["GET"])
 def digits_base():
     """Basisbild fuer den Ziffern-Editor (zugeschnittenes Zahlenfeld)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     try:
         img = _render_base_image(cfg)
         buf = io.BytesIO()
@@ -948,7 +1079,7 @@ def digits_test():
     """Fuehrt die TFLite-Erkennung mit den uebergebenen (oder gespeicherten)
     ROIs aus und liefert eine Uebersicht pro Ziffer (AI-on-the-edge-Stil)."""
     import tflite_ocr
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     data = request.get_json(silent=True) or {}
     rois = data.get("digit_rois")
     if rois is None:
@@ -1011,7 +1142,7 @@ def digits_test():
 @app.route("/tuner/save", methods=["POST"])
 def tuner_save():
     """Speichert die getunten Werte (ueberschreiben die Add-on-Konfig)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     data = request.get_json(silent=True) or {}
     try:
         tuning.save(Path(cfg["tuning_path"]), data, log)
@@ -1023,7 +1154,7 @@ def tuner_save():
 @app.route("/tuner/reset", methods=["POST"])
 def tuner_reset():
     """Loescht die getunten Werte (zurueck zur Add-on-Konfig)."""
-    cfg = get_config(log)
+    cfg = get_config(log, request.args.get("id") or None)
     tuning.clear(Path(cfg["tuning_path"]), log)
     return jsonify({"ok": True})
 

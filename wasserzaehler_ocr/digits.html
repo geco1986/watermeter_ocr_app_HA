@@ -204,7 +204,7 @@ el("addBtn").addEventListener("click", () => {
   rois.push({ x: 0.4, y: 0.2, w: 0.12, h: 0.6 }); selectedIndex = rois.length - 1; renderBoxes();
 });
 el("removeBtn").addEventListener("click", () => { rois.pop(); if (selectedIndex >= rois.length) selectedIndex = rois.length - 1; renderBoxes(); });
-el("reloadImgBtn").addEventListener("click", () => { img.src = "digits/base.jpg?ts=" + Date.now(); });
+el("reloadImgBtn").addEventListener("click", () => { img.src = "digits/base.jpg?ts=" + Date.now() + WZ.idParam(); });
 
 // Alle Boxen auf Größe/Höhe der ausgewählten (bzw. ersten) bringen
 el("unifyBtn").addEventListener("click", () => {
@@ -289,7 +289,7 @@ el("fetchBtn").addEventListener("click", () => {
     body: JSON.stringify({ light_brightness: parseInt(el("led_brightness").value) || 0 }) })
     .then(r => r.json()).then(d => {
       b.disabled = false; b.textContent = "Neues Bild von Kamera holen";
-      if (d.ok) { st.className = "status ok"; st.textContent = "Neues Bild geladen."; img.src = "digits/base.jpg?ts=" + Date.now(); }
+      if (d.ok) { st.className = "status ok"; st.textContent = "Neues Bild geladen."; img.src = "digits/base.jpg?ts=" + Date.now() + WZ.idParam(); }
       else { st.className = "status err"; st.textContent = "Fehler: " + (d.error || "unbekannt"); }
     }).catch(e => { b.disabled = false; b.textContent = "Neues Bild von Kamera holen"; st.className = "status err"; st.textContent = "Fehler: " + e; });
 });
@@ -373,6 +373,7 @@ img.addEventListener("error", () => {
   el("countnote").style.color = "var(--warn)";
 });
 init();
+window.addEventListener("load", () => { if (WZ.getMeter()) img.src = "digits/base.jpg?ts=" + Date.now() + WZ.idParam(); });
 </script>
 </body>
 </html>

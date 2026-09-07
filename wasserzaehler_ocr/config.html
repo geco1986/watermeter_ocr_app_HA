@@ -32,6 +32,22 @@
     <p data-i18n="cfg.sub"></p>
   </div>
 
+  <div class="card" id="metersCard">
+    <h2><svg class="icon"><use href="#ic-meter"></use></svg><span data-i18n="meter.manage"></span></h2>
+    <div class="desc" data-i18n="cfg.metersDesc"></div>
+    <div id="meterList"></div>
+    <div class="meterrow">
+      <input type="text" id="newMeterName" class="grow" data-i18n-ph="meter.newPh">
+      <select id="newMeterType">
+        <option value="water" data-i18n="type.water"></option>
+        <option value="electricity" data-i18n="type.electricity"></option>
+        <option value="heat" data-i18n="type.heat"></option>
+      </select>
+      <button id="addMeterBtn" type="button"><svg class="icon"><use href="#ic-check"></use></svg><span data-i18n="meter.add"></span></button>
+    </div>
+    <div class="note" id="meterHint" data-i18n="meter.current"></div>
+  </div>
+
   <div class="card">
     <h2><svg class="icon"><use href="#ic-router"></use></svg><span data-i18n="cfg.addr"></span></h2>
     <div class="desc">Interne Docker-Adresse dieses Add-ons – so wie bei der Frigate-App
@@ -453,6 +469,64 @@ el("restartBtn").addEventListener("click", () => {
 loadSettings();
 loadSystemInfo();
 loadHostInfo();
+
+/* ---- Zaehler-Verwaltung (mehrere Kameras/Zaehler) --------------------- */
+function _escAttr(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+function _typeOpt(v, cur){ return '<option value="'+v+'"'+(v===cur?" selected":"")+'>'+WZ.t("type."+v)+'</option>'; }
+
+function renderMeterList(){
+  fetch("meters").then(r => r.json()).then(d => {
+    const list = (d && d.meters) || [];
+    const active = WZ.getMeter() || d.active;
+    const box = el("meterList");
+    if (!box) return;
+    box.innerHTML = list.map(m => {
+      const cur = (m.id === active);
+      return '<div class="meterrow">' +
+        '<input class="grow" data-mid="' + m.id + '" data-f="name" value="' + _escAttr(m.name) + '"' + (cur ? ' style="font-weight:600"' : '') + '>' +
+        '<select data-mid="' + m.id + '" data-f="type">' +
+          _typeOpt("water", m.type) + _typeOpt("electricity", m.type) + _typeOpt("heat", m.type) +
+        '</select>' +
+        '<span class="idtag">' + m.id + '</span>' +
+        '<button class="ghost" type="button" data-del="' + m.id + '" title="' + WZ.t("meter.delete") + '"><svg class="icon"><use href="#ic-delete"></use></svg></button>' +
+      '</div>';
+    }).join("");
+
+    box.querySelectorAll("[data-f]").forEach(inp => {
+      inp.addEventListener("change", () => {
+        const payload = { id: inp.getAttribute("data-mid") };
+        payload[inp.getAttribute("data-f") === "name" ? "name" : "type"] = inp.value;
+        fetch("meter_update", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload) }).then(() => location.reload());
+      });
+    });
+    box.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const mid = btn.getAttribute("data-del");
+        if (!confirm(WZ.t("meter.deleteConfirm"))) return;
+        fetch("meter_delete", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mid }) }).then(r => r.json()).then(res => {
+          if (!res.ok) { alert(res.error || ""); return; }
+          if (mid === WZ.getMeter()) { try { localStorage.removeItem("wz_meter"); } catch (e) {} }
+          location.reload();
+        });
+      });
+    });
+  }).catch(() => {});
+}
+
+el("addMeterBtn").addEventListener("click", () => {
+  const name = (el("newMeterName").value || "").trim();
+  if (!name) return;
+  const type = el("newMeterType").value;
+  fetch("meters", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name, type: type }) }).then(r => r.json()).then(res => {
+    if (res.ok && res.meter) { try { localStorage.setItem("wz_meter", res.meter.id); } catch (e) {} }
+    location.reload();
+  });
+});
+
+renderMeterList();
 </script>
 </body>
 </html>

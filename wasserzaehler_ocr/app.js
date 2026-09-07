@@ -10,6 +10,39 @@
 (function () {
   "use strict";
 
+  /* ---- aktiver Zaehler (fuer Mehr-Zaehler-Betrieb) --------------------- */
+  var MID = (function () { try { return localStorage.getItem("wz_meter") || ""; } catch (e) { return ""; } })();
+
+  // Endpunkte, die NICHT zaehlerspezifisch sind (kein ?id anhaengen).
+  var GLOBAL_PATHS = ["health", "meters", "meter_update", "meter_delete",
+    "meter_active", "cpu_stats", "system_info", "hostinfo", "tflite_models",
+    "restart_addon", "ollama_delete_unused", "app.css", "app.js"];
+
+  function withMeter(url) {
+    if (typeof url !== "string") return url;
+    if (/^https?:/.test(url) || url.indexOf("//") === 0) return url;   // absolut
+    var qi = url.indexOf("?");
+    var path = qi < 0 ? url : url.slice(0, qi);
+    var seg = path.replace(/^\.?\//, "").split("/")[0];
+    if (GLOBAL_PATHS.indexOf(seg) >= 0) return url;
+    if (/[?&]id=/.test(url)) return url;
+    if (!MID) return url;
+    return url + (qi < 0 ? "?" : "&") + "id=" + encodeURIComponent(MID);
+  }
+  // Rohes fetch merken; window.fetch so umhuellen, dass die aktive Zaehler-ID
+  // automatisch an zaehlerbezogene Aufrufe angehaengt wird - so muss nicht
+  // jeder einzelne fetch-Aufruf auf den Seiten angefasst werden.
+  var _fetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try { if (typeof input === "string") input = withMeter(input); } catch (e) {}
+    return _fetch(input, init);
+  };
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
   /* ---------------- Icon-Sprite (24x24, fill=currentColor) ---------------- */
   var ICONS = {
     drop: "M12 2.6C8.4 6.3 5.5 10 5.5 13.5A6.5 6.5 0 0012 20a6.5 6.5 0 006.5-6.5C18.5 10 15.6 6.3 12 2.6z",
@@ -136,7 +169,18 @@
       "btn.saveOverride": "Werte speichern (überschreiben)", "btn.resetConfig": "Auf Add-on-Konfig zurücksetzen",
       "btn.distribute": "Gleichmäßig verteilen", "btn.unify": "Vereinheitlichen",
       "btn.digitPlus": "Ziffer +", "btn.digitMinus": "Ziffer −", "btn.reloadImg": "Bild neu laden",
-      "btn.savePos": "Positionen speichern", "btn.testRec": "Erkennung testen"
+      "btn.savePos": "Positionen speichern", "btn.testRec": "Erkennung testen",
+
+      "idx.power": "Leistung",
+      "meter.select": "Zähler", "meter.manage": "Zähler / Kameras",
+      "meter.add": "Zähler hinzufügen", "meter.name": "Name", "meter.type": "Typ",
+      "meter.newPh": "Name des neuen Zählers", "meter.delete": "Löschen",
+      "meter.save": "Name/Typ speichern",
+      "meter.deleteConfirm": "Diesen Zähler samt gespeichertem Stand und Verlauf wirklich löschen?",
+      "meter.current": "Aktuell bearbeiteter Zähler:",
+      "meter.addedHint": "Zähler angelegt – er ist jetzt oben in der Leiste auswählbar.",
+      "type.water": "Wasser", "type.electricity": "Strom", "type.heat": "Wärme",
+      "cfg.metersDesc": "Mehrere Zähler – jeder mit eigener Kamera, eigenem Zuschnitt und eigenen Einstellungen. Oben in der Leiste wählst du, welcher Zähler gerade bearbeitet wird."
     },
     en: {
       "nav.overview": "Overview", "nav.config": "Configuration", "nav.tuner": "Image tuner",
@@ -219,7 +263,18 @@
       "btn.saveOverride": "Save values (override)", "btn.resetConfig": "Reset to add-on config",
       "btn.distribute": "Distribute evenly", "btn.unify": "Unify",
       "btn.digitPlus": "Digit +", "btn.digitMinus": "Digit −", "btn.reloadImg": "Reload image",
-      "btn.savePos": "Save positions", "btn.testRec": "Test recognition"
+      "btn.savePos": "Save positions", "btn.testRec": "Test recognition",
+
+      "idx.power": "Power",
+      "meter.select": "Meter", "meter.manage": "Meters / cameras",
+      "meter.add": "Add meter", "meter.name": "Name", "meter.type": "Type",
+      "meter.newPh": "Name of the new meter", "meter.delete": "Delete",
+      "meter.save": "Save name/type",
+      "meter.deleteConfirm": "Really delete this meter including its stored reading and history?",
+      "meter.current": "Currently editing meter:",
+      "meter.addedHint": "Meter created – you can now select it in the top bar.",
+      "type.water": "Water", "type.electricity": "Electricity", "type.heat": "Heat",
+      "cfg.metersDesc": "Several meters – each with its own camera, crop and settings. Use the top bar to choose which meter you are editing."
     }
   };
 
@@ -287,6 +342,7 @@
         '<span class="brand">' + icon("drop", "drop icon-lg") +
           '<span><h1>Wasserzähler OCR</h1></span></span>' +
         '<span class="spacer"></span>' +
+        '<select class="mtr" id="wz-meter" title="Zähler" aria-label="Zähler"></select>' +
         '<span class="lang" role="group" aria-label="Language">' +
           '<button data-lang="de">DE</button><button data-lang="en">EN</button>' +
         '</span>' +
@@ -295,6 +351,31 @@
     host.querySelectorAll(".lang button").forEach(function (b) {
       b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
     });
+    loadMeters();
+  }
+
+  function loadMeters() {
+    var sel = document.getElementById("wz-meter");
+    if (!sel) return;
+    _fetch("meters").then(function (r) { return r.json(); }).then(function (d) {
+      var list = (d && d.meters) || [];
+      if (!list.length) { sel.style.display = "none"; return; }
+      var ids = list.map(function (m) { return m.id; });
+      if (!MID || ids.indexOf(MID) < 0) {
+        MID = (d.active && ids.indexOf(d.active) >= 0) ? d.active : list[0].id;
+        try { localStorage.setItem("wz_meter", MID); } catch (e) {}
+      }
+      sel.innerHTML = list.map(function (m) {
+        return '<option value="' + escapeHtml(m.id) + '"' + (m.id === MID ? " selected" : "") +
+          ">" + escapeHtml(m.name) + "</option>";
+      }).join("");
+      sel.onchange = function () {
+        var v = sel.value; MID = v;
+        try { localStorage.setItem("wz_meter", v); } catch (e) {}
+        _fetch("meter_active", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: v }) }).catch(function () {}).then(function () { location.reload(); });
+      };
+    }).catch(function () { sel.style.display = "none"; });
   }
 
   /* ------------------------------ Ripple ---------------------------------- */
@@ -329,6 +410,8 @@
 
   /* --------------------------- öffentliche API ---------------------------- */
   window.WZ = { t: t, icon: icon, setLang: setLang, getLang: function () { return LANG; },
-    applyI18n: applyI18n, providerLabel: providerLabel };
+    applyI18n: applyI18n, providerLabel: providerLabel,
+    getMeter: function () { return MID; },
+    idParam: function () { return MID ? "&id=" + encodeURIComponent(MID) : ""; } };
   window.t = t;
 })();
