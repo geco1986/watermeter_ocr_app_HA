@@ -292,3 +292,85 @@ code {
 .steps p { margin: 0 0 6px; color: var(--on-surface-muted); font-size: .86rem; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* ==========================================================================
+   Mehr-Zaehler-Betrieb: App-Bar-Umschalter + Verwaltungskarte
+   ========================================================================== */
+
+/* Zaehler-Umschalter in der App-Bar (schmal, nicht dehnen) */
+#appbar select#wz-meter.mtr {
+  flex: 0 0 auto; width: auto; max-width: 200px;
+  padding: 8px 30px 8px 12px; font-size: .82rem; font-weight: 600;
+  border-radius: var(--r-full); background-color: var(--surface-2);
+}
+@media (max-width: 560px) { #appbar select#wz-meter.mtr { max-width: 42vw; } }
+
+/* Banner: welcher Zaehler wird gerade bearbeitet */
+.active-banner {
+  display: flex; align-items: center; gap: 10px; margin: 4px 0 16px;
+  padding: 11px 14px; border: 1px solid var(--outline); border-radius: var(--r-sm);
+  background: var(--primary-container); color: var(--on-primary-container); font-size: .9rem;
+}
+.active-banner .label { opacity: .85; }
+.active-banner strong { font-weight: 700; }
+.active-banner .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring); flex: none;
+}
+
+/* Bloecke innerhalb der Karte */
+.mblock { border: 1px solid var(--outline-weak); border-radius: var(--r-sm); padding: 14px; margin-top: 14px; }
+.mblock.dashed { border-style: dashed; border-color: var(--outline); }
+.mblock > h3 { margin: 0 0 4px; font-size: .82rem; font-weight: 700; }
+.mblock > .hint { margin: 0 0 12px; color: var(--on-surface-muted); font-size: .83rem; }
+
+/* Liste vorhandener Zaehler */
+.meter-list { display: flex; flex-direction: column; gap: 10px; }
+.meter {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px;
+  background: var(--surface-2); border: 1px solid var(--outline); border-radius: var(--r-xs);
+  padding: 10px 12px; cursor: pointer; transition: border-color .12s, background .12s;
+}
+.meter:hover { border-color: var(--on-surface-muted); }
+.meter:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.meter.is-active { border-color: var(--primary); background: var(--primary-container); box-shadow: inset 3px 0 0 var(--primary); }
+.meter .radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--outline); flex: none; position: relative; }
+.meter.is-active .radio { border-color: var(--primary); }
+.meter.is-active .radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--primary); }
+.meter .mname {
+  width: 100%; min-width: 0; margin: 0; padding: 5px 6px; font-size: .92rem; font-weight: 600;
+  background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--on-surface);
+}
+.meter .mname:disabled { color: var(--on-surface); opacity: 1; cursor: pointer; -webkit-text-fill-color: var(--on-surface); }
+.meter .mname:not(:disabled) { background: var(--surface); border-color: var(--primary); }
+.meter .typecell { display: flex; align-items: center; }
+.meter .mtype { width: auto; padding: 6px 26px 6px 10px; font-size: .8rem; margin: 0; }
+.row-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
+  border-radius: 8px; border: 1px solid var(--outline); background: transparent;
+  color: var(--on-surface-muted); box-shadow: none;
+}
+.icon-btn:hover { color: var(--on-surface); border-color: var(--on-surface-muted); background: var(--surface); filter: none; box-shadow: none; }
+.icon-btn.danger:hover { color: var(--warn); border-color: var(--warn); }
+.icon-btn .icon { width: 16px; height: 16px; }
+
+/* Typ-Badges (tonale Farben, passen sich Hell/Dunkel an) */
+.badge { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: var(--r-full);
+  white-space: nowrap; background: var(--surface-3); color: var(--on-surface-muted); }
+.badge.water { color: var(--primary); background: var(--primary-container); }
+.badge.electricity { color: var(--amber); background: color-mix(in srgb, var(--amber) 20%, var(--surface)); }
+.badge.heat { color: var(--warn); background: color-mix(in srgb, var(--warn) 20%, var(--surface)); }
+.badge.gas { color: #d98a3d; background: color-mix(in srgb, #d98a3d 20%, var(--surface)); }
+
+/* Neuer Zaehler */
+.new-grid { display: grid; grid-template-columns: 1fr 170px; gap: 12px; margin-bottom: 12px; }
+.field-label { display: block; font-size: .8rem; color: var(--on-surface-muted); margin: 0 0 6px; }
+.empty { color: var(--on-surface-muted); font-size: .86rem; text-align: center; padding: 18px;
+  border: 1px dashed var(--outline); border-radius: var(--r-xs); }
+
+@media (max-width: 560px) {
+  .new-grid { grid-template-columns: 1fr; }
+  .meter { grid-template-columns: auto 1fr auto; row-gap: 8px; }
+  .meter .typecell { grid-column: 2 / 4; justify-self: start; }
+}

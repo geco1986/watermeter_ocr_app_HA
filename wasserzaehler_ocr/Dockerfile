@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL io.hass.version="1.7.0" \
+LABEL io.hass.version="1.7.1" \
       io.hass.type="addon" \
       io.hass.name="Wasserzähler OCR" \
       io.hass.arch="amd64|aarch64"

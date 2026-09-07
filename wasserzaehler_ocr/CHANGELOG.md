@@ -4,6 +4,24 @@ Alle nennenswerten Änderungen an diesem Add-on werden hier festgehalten.
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/),
 die Versionierung an [SemVer](https://semver.org/lang/de/).
 
+## 1.7.1
+
+### Hinzugefügt
+- **Zählertyp Gas.** Zusätzlich zu Wasser/Strom/Wärme wählbar; Zählerstand in
+  m³, Momentanwert als Durchfluss in m³/h. Eigene Badge-Farbe in der
+  Zähler-Verwaltung.
+  > Hinweis: Damit ein Gaszähler in Home Assistant auch als Gas-Gerät
+  > erscheint, muss die zugehörige Integration den Typ `gas` kennen
+  > (ab Integrations-Version mit Gas-Unterstützung). Ältere Integrationen
+  > behandeln unbekannte Typen als Wasser.
+
+### Behoben
+- **Layout der Zähler-Verwaltung überarbeitet.** Auswählen, Umbenennen und
+  Neu-Anlegen sind klar getrennt: aktive Anzeige als Banner, anklickbare
+  Zähler-Zeilen mit Typ-Badge, Umbenennen/Typ ändern per Stift, Löschen per
+  Papierkorb. Behebt Überlappungen und die doppelte Typ-Auswahl.
+- **Zähler-Umschalter in der Kopfzeile** ist nicht mehr überbreit.
+
 ## 1.7.0
 
 ### Hinzugefügt

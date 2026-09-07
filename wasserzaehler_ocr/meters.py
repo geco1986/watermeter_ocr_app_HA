@@ -25,7 +25,7 @@ from pathlib import Path
 
 import settings
 
-VALID_TYPES = ("water", "electricity", "heat")
+VALID_TYPES = ("water", "electricity", "heat", "gas")
 DEFAULT_ID = "zaehler1"
 
 

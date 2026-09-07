@@ -179,7 +179,14 @@
       "meter.deleteConfirm": "Diesen Zähler samt gespeichertem Stand und Verlauf wirklich löschen?",
       "meter.current": "Aktuell bearbeiteter Zähler:",
       "meter.addedHint": "Zähler angelegt – er ist jetzt oben in der Leiste auswählbar.",
-      "type.water": "Wasser", "type.electricity": "Strom", "type.heat": "Wärme",
+      "meter.editing": "Du bearbeitest gerade:",
+      "meter.existing": "Vorhandene Zähler",
+      "meter.existingHint": "Zum Bearbeiten anklicken. Über das Stift-Symbol umbenennen und den Typ ändern, über den Papierkorb löschen.",
+      "meter.addNew": "Neuen Zähler hinzufügen",
+      "meter.addNewHint": "Name vergeben und Typ wählen – der neue Zähler wird sofort aktiv, sodass du direkt Kamera und Bildausschnitt einstellen kannst.",
+      "meter.empty": "Noch kein Zähler angelegt.",
+      "meter.rename": "Umbenennen", "meter.saveName": "Speichern",
+      "type.water": "Wasser", "type.electricity": "Strom", "type.heat": "Wärme", "type.gas": "Gas",
       "cfg.metersDesc": "Mehrere Zähler – jeder mit eigener Kamera, eigenem Zuschnitt und eigenen Einstellungen. Oben in der Leiste wählst du, welcher Zähler gerade bearbeitet wird."
     },
     en: {
@@ -273,7 +280,14 @@
       "meter.deleteConfirm": "Really delete this meter including its stored reading and history?",
       "meter.current": "Currently editing meter:",
       "meter.addedHint": "Meter created – you can now select it in the top bar.",
-      "type.water": "Water", "type.electricity": "Electricity", "type.heat": "Heat",
+      "meter.editing": "Currently editing:",
+      "meter.existing": "Existing meters",
+      "meter.existingHint": "Click a meter to edit it. Use the pencil to rename and change the type, the trash icon to delete.",
+      "meter.addNew": "Add new meter",
+      "meter.addNewHint": "Give it a name and pick a type – the new meter becomes active right away so you can set up its camera and crop.",
+      "meter.empty": "No meter created yet.",
+      "meter.rename": "Rename", "meter.saveName": "Save",
+      "type.water": "Water", "type.electricity": "Electricity", "type.heat": "Heat", "type.gas": "Gas",
       "cfg.metersDesc": "Several meters – each with its own camera, crop and settings. Use the top bar to choose which meter you are editing."
     }
   };

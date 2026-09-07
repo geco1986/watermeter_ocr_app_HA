@@ -162,6 +162,8 @@ def _rate_for_type(mtype, value, last_value, last_timestamp, now, log=None):
         return round(delta / hours * 1000.0, 1)   # kWh/h -> W
     if mtype == "heat":
         return round(delta / hours, 3)            # kWh/h -> kW
+    if mtype == "gas":
+        return round(delta / hours, 3)            # m3/h
     return 0.0
 
 # Logging direkt nach stdout - Home Assistant zeigt das im Add-on-Protokoll an.
@@ -456,7 +458,7 @@ def health():
 
 # Add-on-Version (identisch zu config.yaml / Dockerfile-Label); u. a. fuer die
 # Info-Seite und zur Anzeige in der Integration ueber /health.
-ADDON_VERSION = "1.7.0"
+ADDON_VERSION = "1.7.1"
 
 
 @app.route("/meters", methods=["GET"])

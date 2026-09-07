@@ -117,6 +117,7 @@ let lastFilled = null, lastData = null, lastStatus = null, CURTYPE = "water";
 function units(ty){
   if(ty==="electricity") return {v:" kWh", r:" W",    rl:"idx.power"};
   if(ty==="heat")        return {v:" kWh", r:" kW",   rl:"idx.power"};
+  if(ty==="gas")         return {v:" m³",  r:" m³/h", rl:"idx.flow"};
   return {v:" m³", r:" L/min", rl:"idx.flow"};
 }
 function kv(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }

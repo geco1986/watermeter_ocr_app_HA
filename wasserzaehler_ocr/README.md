@@ -1,6 +1,6 @@
 # Wasserzähler OCR – Home-Assistant-Add-on
 
-> **Version 1.7.0.** Liest einen Wasserzähler automatisch aus einem
+> **Version 1.7.1.** Liest einen Wasserzähler automatisch aus einem
 > Kamerabild aus: Bild holen → zuschneiden → Ziffern per OCR erkennen →
 > Plausibilität prüfen → Zählerstand und Durchflussrate liefern.
 >
